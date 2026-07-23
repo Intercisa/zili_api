@@ -72,6 +72,71 @@ DB_NAME=zili
 
 ---
 
+## Backup
+```bash
+#!/bin/bash
+
+set -euo pipefail
+
+CONTAINER_NAME="postgresql"
+DB_USER="user"
+DB_NAME="zili"
+
+BACKUP_DIR="/home/intercisa/backups/postgresql"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+BACKUP_FILE="$BACKUP_DIR/zili_full_${TIMESTAMP}.sql"
+LATEST_FILE="$BACKUP_DIR/zili_full_latest.sql"
+LOG_FILE="$BACKUP_DIR/backup_zili.log"
+
+mkdir -p "$BACKUP_DIR"
+
+echo "========================================" | tee -a "$LOG_FILE"
+echo "Starting backup: $(date)" | tee -a "$LOG_FILE"
+echo "Container: $CONTAINER_NAME" | tee -a "$LOG_FILE"
+echo "Database:  $DB_NAME" | tee -a "$LOG_FILE"
+echo "Output:    $BACKUP_FILE" | tee -a "$LOG_FILE"
+
+docker exec "$CONTAINER_NAME" pg_dump \
+    -U "$DB_USER" \
+    -d "$DB_NAME" \
+    --clean \
+    --if-exists \
+    --create \
+    --inserts \
+    --column-inserts \
+    > "$BACKUP_FILE"
+
+if [ ! -s "$BACKUP_FILE" ]; then
+    echo "ERROR: Backup file was not created or is empty." | tee -a "$LOG_FILE"
+    exit 1
+fi
+
+cp "$BACKUP_FILE" "$LATEST_FILE"
+
+echo "Backup created successfully:" | tee -a "$LOG_FILE"
+ls -lh "$BACKUP_FILE" | tee -a "$LOG_FILE"
+
+echo "Latest backup updated:" | tee -a "$LOG_FILE"
+ls -lh "$LATEST_FILE" | tee -a "$LOG_FILE"
+
+echo "Deleting backups older than 30 days..." | tee -a "$LOG_FILE"
+find "$BACKUP_DIR" -type f -name "zili_full_*.sql" -mtime +30 -delete
+
+echo "Backup finished: $(date)" | tee -a "$LOG_FILE"
+echo "========================================" | tee -a "$LOG_FILE"
+```
+
+```bash
+crontab -e
+```
+
+```bash
+0 2 * * * /home/intercisa/backup_zili_full.sh
+```
+
+---
+
 ## Database
 
 Connect to the database:
@@ -86,6 +151,12 @@ Run migration manually:
 docker cp zili_migration.sql postgresql:/tmp/zili_migration.sql
 docker exec -it postgresql psql -U user -d zili -v ON_ERROR_STOP=1 -f /tmp/zili_migration.sql
 ```
+
+### Restore with backup
+```bash
+docker exec -i postgresql psql -U user -d postgres < /home/intercisa/backups/postgresql/zili_full_latest.sql
+```
+
 
 ---
 
