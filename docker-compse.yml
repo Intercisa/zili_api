@@ -1,0 +1,36 @@
+services:
+  zili-api:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: zili
+    depends_on:
+      - postgresql
+    restart: always
+    networks:
+      - zili-net
+
+  postgresql:
+    image: postgres
+    container_name: postgresql
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: zili
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - zili-net
+
+networks:
+  zili-net:
+    driver: bridge
+
