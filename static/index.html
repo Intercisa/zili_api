@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zili Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="page-header">
+        <div>
+            <h1>Zili Dashboard</h1>
+            <p>Growth, feeding measurements, and daily log overview</p>
+        </div>
+        <div class="header-actions">
+            <button id="openFormButton">+ Add Entry</button>
+            <button id="refreshButton">Refresh</button>
+        </div>
+    </header>
+
+    <div class="vitamin-reminders">
+        <label class="reminder-item">
+            <input type="checkbox" id="dVitaminCheck" />
+            <span>D-vitamin (daily)</span>
+        </label>
+        <label class="reminder-item">
+            <input type="checkbox" id="kVitaminCheck" />
+            <span>K-vitamin (monthly · due 21st)</span>
+        </label>
+    </div>
+
+    <div id="formOverlay" class="overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Add Daily Entry</h2>
+                <button id="closeFormButton" class="close-btn">&times;</button>
+            </div>
+            <form id="entryForm" class="entry-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="logDate">Date <span class="required">*</span></label>
+                        <input type="date" id="logDate" name="logDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="logTime">Time</label>
+                        <input type="time" id="logTime" name="logTime" step="60" />
+                    </div>
+                    <div class="form-group">
+                        <label for="measurementWeightG">Measurement weight (g)</label>
+                        <input type="number" id="measurementWeightG" name="measurementWeightG" placeholder="e.g. 4200" />
+                    </div>
+                    <div class="form-group">
+                        <label for="statusWeightG">Status weight (g)</label>
+                        <input type="number" id="statusWeightG" name="statusWeightG" placeholder="e.g. 4200" />
+                    </div>
+                    <div class="form-group">
+                        <label for="preFeedWeightG">Pre-feed weight (g)</label>
+                        <input type="number" id="preFeedWeightG" name="preFeedWeightG" placeholder="e.g. 4100" />
+                    </div>
+                    <div class="form-group">
+                        <label for="postFeedWeightG">Post-feed weight (g)</label>
+                        <input type="number" id="postFeedWeightG" name="postFeedWeightG" placeholder="e.g. 4200" />
+                    </div>
+                    <div class="form-group">
+                        <label for="milkTransferG">Milk transfer (g)</label>
+                        <input type="number" id="milkTransferG" name="milkTransferG" placeholder="e.g. 80" />
+                    </div>
+                    <div class="form-group">
+                        <label for="expressedLeftMl">Expressed left (ml)</label>
+                        <input type="number" id="expressedLeftMl" name="expressedLeftMl" placeholder="e.g. 110" />
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="dailySummary">Daily summary</label>
+                    <textarea id="dailySummary" name="dailySummary" rows="4" placeholder="Describe feeds, naps, notable events..."></textarea>
+                </div>
+                <div id="formError" class="form-error hidden"></div>
+                <div id="formSuccess" class="form-success hidden"></div>
+                <div class="form-actions">
+                    <button type="button" id="cancelFormButton" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <main>
+        <section class="summary-grid">
+            <div class="summary-card"><span class="label">Total logs</span><span id="totalLogs" class="value">-</span></div>
+            <div class="summary-card"><span class="label">Weight entries</span><span id="weightEntries" class="value">-</span></div>
+            <div class="summary-card"><span class="label">First weight</span><span id="firstWeight" class="value">-</span></div>
+            <div class="summary-card"><span class="label">Latest weight</span><span id="latestWeight" class="value">-</span></div>
+            <div class="summary-card"><span class="label">Total gain</span><span id="weightGain" class="value">-</span></div>
+            <div class="summary-card"><span class="label">Milk records</span><span id="milkEntries" class="value">-</span></div>
+            <div class="summary-card"><span class="label">Average milk transfer</span><span id="averageMilk" class="value">-</span></div>
+        </section>
+
+        <section class="chart-card">
+            <div class="section-title"><h2>Weight trend</h2><p>Recorded measurement weight over time</p></div>
+            <canvas id="weightChart"></canvas>
+        </section>
+
+        <section class="chart-card">
+            <div class="section-title"><h2>Milk transfer</h2><p>Recorded weighed-feed milk transfer values</p></div>
+            <canvas id="milkTransferChart"></canvas>
+        </section>
+
+        <section class="chart-card">
+            <div class="section-title"><h2>Daily logs</h2><p>Search in daily notes</p></div>
+            <input id="searchInput" class="search-input" type="text" placeholder="Search daily summaries..." />
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date / Time</th>
+                            <th>Weight</th>
+                            <th>Milk transfer</th>
+                            <th>Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+
