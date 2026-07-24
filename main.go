@@ -2,14 +2,18 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
+
+const createTablesSQLPath = "sql/create_tables.sql"
 
 type DailyLog struct {
 	ID                int     `json:"id"`
@@ -74,6 +78,11 @@ func main() {
 
 	defer db.Close()
 
+	if err := initSchema(db); err != nil {
+		log.Fatalf("failed to initialize database schema: %v", err)
+	}
+	log.Println("Database schema initialized successfully")
+
 	router := gin.Default()
 
 	router.Static("/static", "./static")
@@ -110,6 +119,28 @@ func getEnv(key string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// initSchema reads the SQL schema file and executes it against the
+// database, creating any tables that don't already exist. It is safe
+// to run on every startup since the schema uses "CREATE TABLE IF NOT
+// EXISTS" statements, and it also tolerates "already exists" errors
+// from the driver in case that isn't the case for some statement.
+func initSchema(db *sql.DB) error {
+	schema, err := os.ReadFile(createTablesSQLPath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", createTablesSQLPath, err)
+	}
+
+	if _, err := db.Exec(string(schema)); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "already exists") {
+			log.Printf("schema objects already exist, continuing: %v", err)
+			return nil
+		}
+		return fmt.Errorf("failed to execute schema from %s: %w", createTablesSQLPath, err)
+	}
+
+	return nil
 }
 
 func dashboard(c *gin.Context) {
