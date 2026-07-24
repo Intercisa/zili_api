@@ -15,6 +15,7 @@ WORKDIR /app
 
 COPY --from=builder /app/zili-api .
 COPY --from=builder /app/static ./static
+COPY --from=builder /app/sql ./sql
 
 EXPOSE 8080
 
