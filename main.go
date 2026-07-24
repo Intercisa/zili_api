@@ -106,8 +106,9 @@ func main() {
 
 	router.POST("/api/logs", createLog)
 
-	log.Println("Server started on :8081")
-	err = router.Run(":8081")
+	port := getEnv("PORT", "8080")
+	log.Printf("Server started on :%s", port)
+	err = router.Run(":" + port)
 	if err != nil {
 		log.Fatal(err)
 	}
