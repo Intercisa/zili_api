@@ -24,14 +24,25 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("dVitaminCheck").addEventListener("change", e => {
         const date = new Date().toISOString().slice(0, 10);
         saveVitamin("d-vitamin", e.target.checked, date);
+        if (e.target.checked) e.target.disabled = true;
     });
 
     document.getElementById("kVitaminCheck").addEventListener("change", e => {
         const today = new Date();
         const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         saveVitamin("k-vitamin", e.target.checked, date);
+        if (e.target.checked) e.target.disabled = true;
+    });
+
+    document.querySelectorAll(".quick-tag").forEach(cb => {
+        cb.addEventListener("change", syncQuickTags);
     });
 });
+
+function syncQuickTags() {
+    const checked = [...document.querySelectorAll(".quick-tag:checked")].map(cb => cb.value);
+    document.getElementById("dailySummary").value = checked.join(", ");
+}
 
 async function loadVitamins() {
     const today = new Date();
@@ -40,11 +51,17 @@ async function loadVitamins() {
 
     const data = await fetch("/api/vitamins").then(r => r.json()).catch(() => ({}));
 
+    const dEl = document.getElementById("dVitaminCheck");
     const d = data["d-vitamin"];
-    document.getElementById("dVitaminCheck").checked = d && d.date === todayStr && d.checked === true;
+    const dCheckedToday = d && d.date === todayStr && d.checked === true;
+    dEl.checked = dCheckedToday;
+    dEl.disabled = dCheckedToday;
 
+    const kEl = document.getElementById("kVitaminCheck");
     const k = data["k-vitamin"];
-    document.getElementById("kVitaminCheck").checked = k && k.date === monthStr && k.checked === true;
+    const kCheckedThisMonth = k && k.date === monthStr && k.checked === true;
+    kEl.checked = kCheckedThisMonth;
+    kEl.disabled = kCheckedThisMonth;
 }
 
 async function saveVitamin(key, checked, date) {
