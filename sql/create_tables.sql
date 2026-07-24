@@ -1,4 +1,4 @@
-CREATE TABLE zili_daily_log (
+CREATE TABLE IF NOT EXISTS zili_daily_log (
     id SERIAL PRIMARY KEY,
     log_date DATE NOT NULL,
     log_time TIME,
@@ -11,7 +11,7 @@ CREATE TABLE zili_daily_log (
     measurement_weight_g INTEGER
 );
 
-CREATE TABLE vitamin_checks (
+CREATE TABLE IF NOT EXISTS vitamin_checks (
     key TEXT PRIMARY KEY,
     checked BOOLEAN NOT NULL DEFAULT FALSE,
     date TEXT
