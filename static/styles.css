@@ -188,6 +188,7 @@ table {
     border-collapse: collapse;
     font-size: 0.875rem;
     min-width: 480px;
+    table-layout: fixed;
 }
 
 thead { background: #fdf2f6; }
@@ -205,13 +206,22 @@ th {
     top: 0;
     background: #fdf2f6;
     z-index: 1;
+    overflow-wrap: break-word;
 }
+
+th:nth-child(1), td:nth-child(1) { width: 22%; }
+th:nth-child(2), td:nth-child(2) { width: 44%; }
+th:nth-child(3), td:nth-child(3) { width: 18%; }
+th:nth-child(4), td:nth-child(4) { width: 16%; }
+
 
 td {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #fbe9f1;
     color: #5c3348;
     vertical-align: top;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 tbody tr:last-child td { border-bottom: none; }
