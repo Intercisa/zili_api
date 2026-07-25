@@ -176,8 +176,8 @@ async function loadWeightChart() {
             datasets: [{
                 label: "Weight (g)",
                 data: data.map(i => i.weight),
-                borderColor: "#4f46e5",
-                backgroundColor: "rgba(79,70,229,0.12)",
+                borderColor: "#7b174e",
+                backgroundColor: "rgba(235, 63, 126, 0.88)",
                 borderWidth: 3,
                 pointRadius: 4,
                 pointHoverRadius: 7,
@@ -207,8 +207,8 @@ async function loadMilkTransferChart() {
             datasets: [{
                 label: "Milk transfer (g)",
                 data: data.map(i => i.milkTransferG),
-                backgroundColor: "#10b981",
-                borderColor: "#059669",
+                backgroundColor: "#eb6da2",
+                borderColor: "#ac3980",
                 borderWidth: 1
             }]
         },
@@ -256,7 +256,7 @@ function renderLogsTable(searchText) {
         const summaryCell = document.createElement("td");
         summaryCell.textContent = item.dailySummary || "";
 
-        row.append(dateCell, weightCell, milkCell, summaryCell);
+        row.append(dateCell, summaryCell, weightCell, milkCell);
         tbody.appendChild(row);
     });
 }
