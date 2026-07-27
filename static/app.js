@@ -242,10 +242,29 @@ function renderLogsTable(searchText) {
     filtered.forEach(item => {
         const row = document.createElement("tr");
 
+        const actionsCell = document.createElement("td");
+
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "✏️";
+        editBtn.title = "Edit summary";
+        editBtn.className = "row-btn";
+        editBtn.onclick = () => editSummary(item);
+
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "🗑️";
+        delBtn.title = "Delete entry";
+        delBtn.className = "row-btn";
+        delBtn.onclick = () => deleteEntry(item);
+
+        actionsCell.append(editBtn, delBtn);
+
         const dateCell = document.createElement("td");
         dateCell.textContent = item.logDate
             ? item.logDate.substring(0, 10) + (item.logTime ? " " + item.logTime.substring(11, 16) : "")
             : "-";
+
+        const summaryCell = document.createElement("td");
+        summaryCell.textContent = item.dailySummary || "";
 
         const weightCell = document.createElement("td");
         weightCell.textContent = formatGram(item.measurementWeightG);
@@ -253,12 +272,28 @@ function renderLogsTable(searchText) {
         const milkCell = document.createElement("td");
         milkCell.textContent = formatGram(item.milkTransferG);
 
-        const summaryCell = document.createElement("td");
-        summaryCell.textContent = item.dailySummary || "";
-
-        row.append(dateCell, summaryCell, weightCell, milkCell);
+        row.append(actionsCell, dateCell, summaryCell, weightCell, milkCell);
         tbody.appendChild(row);
     });
+}
+
+async function editSummary(item) {
+    const newSummary = prompt("Edit summary:", item.dailySummary || "");
+    if (newSummary === null) return;
+    const res = await fetch(`/api/logs/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dailySummary: newSummary }),
+    });
+    if (res.ok) loadDashboard();
+    else alert("Failed to update.");
+}
+
+async function deleteEntry(item) {
+    if (!confirm(`Delete entry from ${item.logDate}?`)) return;
+    const res = await fetch(`/api/logs/${item.id}`, { method: "DELETE" });
+    if (res.ok) loadDashboard();
+    else alert("Failed to delete.");
 }
 
 function formatGram(value) {
