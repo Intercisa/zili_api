@@ -165,7 +165,16 @@ function openEditForm(item) {
 
     document.getElementById("editId").value = item.id;
     document.getElementById("editLogDate").value = item.logDate ? item.logDate.substring(0, 10) : "";
-    document.getElementById("editLogTime").value = item.logTime ? item.logTime.substring(11, 16) : "";
+
+    let timeVal = "";
+    if (item.logTime) {
+        if (item.logTime.includes("T")) {
+            timeVal = item.logTime.substring(11, 16);
+        } else {
+            timeVal = item.logTime.substring(0, 5);
+        }
+    }
+    document.getElementById("editLogTime").value = timeVal;
     document.getElementById("editDailySummary").value = item.dailySummary || "";
 }
 
