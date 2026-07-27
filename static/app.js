@@ -18,6 +18,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("entryForm").addEventListener("submit", submitEntry);
 
+    document.getElementById("closeEditButton").addEventListener("click", closeEditForm);
+    document.getElementById("cancelEditButton").addEventListener("click", closeEditForm);
+    document.getElementById("editOverlay").addEventListener("click", event => {
+        if (event.target === document.getElementById("editOverlay")) closeEditForm();
+    });
+    document.getElementById("editForm").addEventListener("submit", submitEdit);
+
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("logDate").value = today;
 
@@ -150,6 +157,80 @@ async function submitEntry(event) {
     }
 }
 
+function openEditForm(item) {
+    document.getElementById("editOverlay").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    document.getElementById("editError").classList.add("hidden");
+    document.getElementById("editSuccess").classList.add("hidden");
+
+    document.getElementById("editId").value = item.id;
+    document.getElementById("editLogDate").value = item.logDate ? item.logDate.substring(0, 10) : "";
+
+    let timeVal = "";
+    if (item.logTime) {
+        if (item.logTime.includes("T")) {
+            timeVal = item.logTime.substring(11, 16);
+        } else {
+            timeVal = item.logTime.substring(0, 5);
+        }
+    }
+    document.getElementById("editLogTime").value = timeVal;
+    document.getElementById("editDailySummary").value = item.dailySummary || "";
+}
+
+function closeEditForm() {
+    document.getElementById("editOverlay").classList.add("hidden");
+    document.body.style.overflow = "";
+    document.getElementById("editForm").reset();
+    document.getElementById("editError").classList.add("hidden");
+    document.getElementById("editSuccess").classList.add("hidden");
+}
+
+async function submitEdit(event) {
+    event.preventDefault();
+
+    const errorEl = document.getElementById("editError");
+    const successEl = document.getElementById("editSuccess");
+    errorEl.classList.add("hidden");
+    successEl.classList.add("hidden");
+
+    const submitBtn = event.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Saving...";
+
+    const id = document.getElementById("editId").value;
+    const logDate = document.getElementById("editLogDate").value.trim();
+    const logTimeRaw = document.getElementById("editLogTime").value.trim();
+    const dailySummary = document.getElementById("editDailySummary").value.trim();
+
+    const payload = {
+        logDate,
+        logTime: logTimeRaw === "" ? null : logTimeRaw,
+        dailySummary,
+    };
+
+    try {
+        const res = await fetch(`/api/logs/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Server error: ${res.status}`);
+        }
+        successEl.textContent = "Entry updated!";
+        successEl.classList.remove("hidden");
+        setTimeout(() => { closeEditForm(); loadDashboard(); }, 1200);
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove("hidden");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Save Changes";
+    }
+}
+
 async function loadDashboard() {
     await Promise.all([loadSummary(), loadWeightChart(), loadMilkTransferChart(), loadLogs()]);
 }
@@ -246,9 +327,9 @@ function renderLogsTable(searchText) {
 
         const editBtn = document.createElement("button");
         editBtn.textContent = "✏️";
-        editBtn.title = "Edit summary";
+        editBtn.title = "Edit entry";
         editBtn.className = "row-btn";
-        editBtn.onclick = () => editSummary(item);
+        editBtn.onclick = () => openEditForm(item);
 
         const delBtn = document.createElement("button");
         delBtn.textContent = "🗑️";
@@ -275,18 +356,6 @@ function renderLogsTable(searchText) {
         row.append(actionsCell, dateCell, summaryCell, weightCell, milkCell);
         tbody.appendChild(row);
     });
-}
-
-async function editSummary(item) {
-    const newSummary = prompt("Edit summary:", item.dailySummary || "");
-    if (newSummary === null) return;
-    const res = await fetch(`/api/logs/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dailySummary: newSummary }),
-    });
-    if (res.ok) loadDashboard();
-    else alert("Failed to update.");
 }
 
 async function deleteEntry(item) {

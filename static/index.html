@@ -30,6 +30,7 @@
         </label>
     </div>
 
+    <!-- Add Entry Modal -->
     <div id="formOverlay" class="overlay hidden">
         <div class="modal">
             <div class="modal-header">
@@ -100,6 +101,39 @@
                 <div class="form-actions">
                     <button type="button" id="cancelFormButton" class="btn-secondary">Cancel</button>
                     <button type="submit" class="btn-primary">Save Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Entry Modal -->
+    <div id="editOverlay" class="overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Edit Entry</h2>
+                <button id="closeEditButton" class="close-btn">&times;</button>
+            </div>
+            <form id="editForm" class="entry-form">
+                <input type="hidden" id="editId" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editLogDate">Date <span class="required">*</span></label>
+                        <input type="date" id="editLogDate" name="editLogDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="editLogTime">Time</label>
+                        <input type="time" id="editLogTime" name="editLogTime" step="60" />
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="editDailySummary">Daily summary</label>
+                    <textarea id="editDailySummary" name="editDailySummary" rows="4" placeholder="Describe feeds, naps, notable events..."></textarea>
+                </div>
+                <div id="editError" class="form-error hidden"></div>
+                <div id="editSuccess" class="form-success hidden"></div>
+                <div class="form-actions">
+                    <button type="button" id="cancelEditButton" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
