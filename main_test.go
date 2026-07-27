@@ -125,3 +125,55 @@ func TestDeleteLog_NoDB(t *testing.T) {
 	}
 }
 
+func TestUpdateLog_InvalidJSON_MissingDate(t *testing.T) {
+	router := setupRouter()
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]interface{}{
+		"dailySummary": "updated summary",
+		"logDate":      "",
+		"logTime":      nil,
+	})
+	req, _ := http.NewRequest("PUT", "/api/logs/1", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when db is nil, got %d", w.Code)
+	}
+}
+
+func TestUpdateLog_WithDateAndTime_NoDB(t *testing.T) {
+	router := setupRouter()
+	w := httptest.NewRecorder()
+	logTime := "14:30"
+	body, _ := json.Marshal(map[string]interface{}{
+		"dailySummary": "updated summary",
+		"logDate":      "2026-07-27",
+		"logTime":      logTime,
+	})
+	req, _ := http.NewRequest("PUT", "/api/logs/1", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when db is nil, got %d", w.Code)
+	}
+}
+
+func TestUpdateLog_WithDateNoTime_NoDB(t *testing.T) {
+	router := setupRouter()
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]interface{}{
+		"dailySummary": "updated summary",
+		"logDate":      "2026-07-27",
+		"logTime":      nil,
+	})
+	req, _ := http.NewRequest("PUT", "/api/logs/1", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when db is nil, got %d", w.Code)
+	}
+}
+

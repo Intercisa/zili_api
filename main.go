@@ -278,13 +278,18 @@ func createLog(c *gin.Context) {
 func updateLog(c *gin.Context) {
 	id := c.Param("id")
 	var body struct {
-		DailySummary string `json:"dailySummary"`
+		DailySummary string  `json:"dailySummary"`
+		LogDate      string  `json:"logDate"`
+		LogTime      *string `json:"logTime"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	_, err := db.Exec(`UPDATE zili_daily_log SET daily_summary = $1 WHERE id = $2`, body.DailySummary, id)
+	_, err := db.Exec(
+		`UPDATE zili_daily_log SET daily_summary = $1, log_date = $2, log_time = $3 WHERE id = $4`,
+		body.DailySummary, body.LogDate, body.LogTime, id,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
