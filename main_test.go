@@ -23,6 +23,8 @@ func setupRouter() *gin.Engine {
 	router.GET("/api/vitamins", getVitamins)
 	router.PUT("/api/vitamins/:key", putVitamin)
 	router.POST("/api/logs", createLog)
+	router.PUT("/api/logs/:id", updateLog)
+	router.DELETE("/api/logs/:id", deleteLog)
 	return router
 }
 
@@ -80,6 +82,42 @@ func TestGetLogs_NoDB(t *testing.T) {
 	router := setupRouter()
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/logs", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when db is nil, got %d", w.Code)
+	}
+}
+
+func TestUpdateLog_InvalidJSON(t *testing.T) {
+	router := setupRouter()
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PUT", "/api/logs/1", bytes.NewBufferString("invalid json"))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestUpdateLog_NoDB(t *testing.T) {
+	router := setupRouter()
+	w := httptest.NewRecorder()
+	body, _ := json.Marshal(map[string]string{"dailySummary": "updated summary"})
+	req, _ := http.NewRequest("PUT", "/api/logs/1", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when db is nil, got %d", w.Code)
+	}
+}
+
+func TestDeleteLog_NoDB(t *testing.T) {
+	router := setupRouter()
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/api/logs/1", nil)
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusInternalServerError {
