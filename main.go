@@ -83,6 +83,9 @@ func main() {
 
 	router.GET("/api/logs", getLogs)
 	router.GET("/api/logs/:date", getLogByDate)
+	router.POST("/api/logs", createLog)
+	router.PUT("/api/logs/:id", updateLog)
+	router.DELETE("/api/logs/:id", deleteLog)
 	router.GET("/api/weights", getWeights)
 	router.GET("/api/milk-transfer", getMilkTransfer)
 	router.GET("/api/summary", getSummary)
@@ -94,8 +97,6 @@ func main() {
 	router.GET("/weights", getWeights)
 	router.GET("/milk-transfer", getMilkTransfer)
 	router.GET("/summary", getSummary)
-
-	router.POST("/api/logs", createLog)
 
 	log.Println("Server started on :8081")
 	err = router.Run(":8081")
@@ -272,6 +273,33 @@ func createLog(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func updateLog(c *gin.Context) {
+	id := c.Param("id")
+	var body struct {
+		DailySummary string `json:"dailySummary"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	_, err := db.Exec(`UPDATE zili_daily_log SET daily_summary = $1 WHERE id = $2`, body.DailySummary, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": id})
+}
+
+func deleteLog(c *gin.Context) {
+	id := c.Param("id")
+	_, err := db.Exec(`DELETE FROM zili_daily_log WHERE id = $1`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func getSummary(c *gin.Context) {
