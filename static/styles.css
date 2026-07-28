@@ -177,6 +177,15 @@ main {
 
 canvas { max-height: 320px; }
 
+.grafana-iframe {
+    width: 100%;
+    height: 800px;
+    border: none;
+    border-radius: 8px;
+    display: block;
+    background: #fdf2f6;
+}
+
 .search-input {
     width: 100%;
     padding: 0.6rem 1rem;
@@ -498,6 +507,8 @@ tbody tr:hover { background: #fdf2f6; }
     .chart-card { padding: 1rem; }
 
     canvas { max-height: 220px; }
+
+    .grafana-iframe { height: 500px; }
 
     .form-grid { grid-template-columns: 1fr; }
 

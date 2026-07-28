@@ -16,7 +16,7 @@
         <div class="header-actions">
             <button id="openFormButton">+ Add Entry</button>
             <button id="refreshButton">Refresh</button>
-            <a href="http://192.168.1.81:3000/public-dashboards/cb74160822584819976d3748102f65c5?from=now-7d&to=now&timezone=Europe%2FBudapest"
+            <a href="http://192.168.1.81:3000/public-dashboards/3ca12fe79dce46beaedf426002d6f1ed?theme=light"
                target="_blank"
                class="btn-grafana">📊 Grafana</a>
         </div>
@@ -161,6 +161,18 @@
         <section class="chart-card">
             <div class="section-title"><h2>Milk transfer</h2><p>Recorded weighed-feed milk transfer values</p></div>
             <canvas id="milkTransferChart"></canvas>
+        </section>
+
+        <section class="chart-card">
+            <div class="section-title">
+                <h2>Grafana Dashboard</h2>
+                <p>Live stats and patterns</p>
+            </div>
+            <iframe
+                class="grafana-iframe"
+                src="http://192.168.1.81:3000/public-dashboards/3ca12fe79dce46beaedf426002d6f1ed?theme=light"
+                allowfullscreen>
+            </iframe>
         </section>
 
         <section class="chart-card">
