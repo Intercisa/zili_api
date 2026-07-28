@@ -9,6 +9,24 @@ A baby growth and feeding tracker dashboard.
 
 ---
 
+## Project structure
+
+```
+project/
+├── docker-compose.yml
+├── create_tables.sql
+├── provisioning/
+│   ├── datasources/
+│   │   └── datasource.yaml
+│   └── dashboards/
+│       └── dashboard.yaml
+├── dashboards/          ← exported Grafana dashboard JSON files
+├── grafana-data/        ← Grafana internal state (gitignored)
+└── .env
+```
+
+---
+
 ## Option 1: Docker Compose (recommended)
 
 ### Start everything
@@ -22,6 +40,14 @@ docker compose up -d
 ```bash
 docker compose down
 ```
+
+### Restore database from backup (only when needed)
+
+```bash
+docker compose --profile restore up postgresql-restore
+```
+
+This uses the latest backup at `~/backups/postgresql/zili_full_latest.sql`.
 
 ---
 
@@ -58,6 +84,24 @@ docker build -t zili-app . && docker run -d \
   zili-app
 ```
 
+### 4. Start Grafana manually
+
+```bash
+docker run -d \
+  --name grafana \
+  --network zili-network \
+  -e GF_SECURITY_ALLOW_EMBEDDING=true \
+  -e GF_AUTH_ANONYMOUS_ENABLED=true \
+  -e GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer \
+  -e GF_SECURITY_ADMIN_USER=admin \
+  -e GF_SECURITY_ADMIN_PASSWORD=admin \
+  -v ./grafana-data:/var/lib/grafana \
+  -v ./provisioning:/etc/grafana/provisioning \
+  -v ./dashboards:/var/lib/grafana/dashboards \
+  -p 3000:3000 \
+  grafana/grafana
+```
+
 ---
 
 ## Environment variables (.env)
@@ -72,7 +116,40 @@ DB_NAME=zili
 
 ---
 
+## Grafana
+
+Once running, open Grafana at:
+
+```
+http://localhost:3000
+```
+
+Default credentials: `admin` / `admin`
+
+### Provisioning
+
+Datasource and dashboard providers are automatically loaded from:
+
+- `provisioning/datasources/datasource.yaml`
+- `provisioning/dashboards/dashboard.yaml`
+
+### Save dashboards
+
+Export dashboards from Grafana UI:
+1. Open dashboard → `...` → **Share** → **Export** → **Save to file**
+2. Drop the JSON file into the `dashboards/` folder
+3. Restart Grafana — it will auto-load on next start
+
+### Copy dashboard to server
+
+```bash
+scp /home/sipi/Downloads/dashboard.json intercisa@homepi.local:/home/intercisa/project/go/zili-app/dashboards/
+```
+
+---
+
 ## Backup
+
 ```bash
 #!/bin/bash
 
@@ -127,6 +204,8 @@ echo "Backup finished: $(date)" | tee -a "$LOG_FILE"
 echo "========================================" | tee -a "$LOG_FILE"
 ```
 
+### Schedule backup with cron
+
 ```bash
 crontab -e
 ```
@@ -152,19 +231,24 @@ docker cp zili_migration.sql postgresql:/tmp/zili_migration.sql
 docker exec -it postgresql psql -U user -d zili -v ON_ERROR_STOP=1 -f /tmp/zili_migration.sql
 ```
 
-### Restore with backup
+### Restore from backup
+
+Via docker exec:
 ```bash
 docker exec -i postgresql psql -U user -d postgres < /home/intercisa/backups/postgresql/zili_full_latest.sql
 ```
 
+Via docker compose profile:
+```bash
+docker compose --profile restore up postgresql-restore
+```
 
 ---
 
 ## Access
 
-Once running, open the dashboard at:
-
-```
-http://localhost:8081
-```
+| Service | URL |
+|---|---|
+| Zili App | http://localhost:8081 |
+| Grafana | http://localhost:3000 |
 
