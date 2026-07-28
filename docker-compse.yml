@@ -31,6 +31,21 @@ services:
     networks:
       - zili-net
 
+  postgresql-restore:
+    image: postgres
+    environment:
+      PGPASSWORD: password
+    volumes:
+      - ~/backups/postgresql:/backups
+    networks:
+      - zili-net
+    depends_on:
+      - postgresql
+    profiles:
+      - restore
+    command: >
+      psql -h postgresql -U user -d zili -f /backups/zili_full_latest.sql
+
   grafana:
     image: grafana/grafana
     container_name: grafana
