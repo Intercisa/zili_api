@@ -69,6 +69,25 @@ body {
 
 #refreshButton:hover { background: #f9a8d4; }
 
+.btn-grafana {
+    padding: 0.5rem 1.25rem;
+    background: #f97316;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.btn-grafana:hover { background: #ea6c00; }
+
 .vitamin-reminders {
     display: flex;
     gap: 1.5rem;
@@ -375,9 +394,7 @@ tbody tr:hover { background: #fdf2f6; }
     transition: background 0.2s, border-color 0.2s;
 }
 
-.quick-tag-group label:hover {
-    border-color: #f9a8d4;
-}
+.quick-tag-group label:hover { border-color: #f9a8d4; }
 
 .quick-tag-group label:has(input:checked) {
     background: #fbcfe8;
@@ -465,9 +482,11 @@ tbody tr:hover { background: #fdf2f6; }
     .header-actions { width: 100%; }
 
     #openFormButton,
-    #refreshButton {
+    #refreshButton,
+    .btn-grafana {
         flex: 1;
         text-align: center;
+        justify-content: center;
     }
 
     main { padding: 1rem; }

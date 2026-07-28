@@ -1,0 +1,16 @@
+apiVersion: 1
+datasources:
+  - name: Postgres-Zili
+    type: postgres
+    access: proxy
+    url: postgresql:5432
+    database: zili
+    user: user
+    secureJsonData:
+      password: password
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      database: zili
+    isDefault: true
+
