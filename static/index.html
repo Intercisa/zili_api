@@ -228,6 +228,19 @@
 
         <section class="chart-card">
             <div class="section-title">
+                <h2>🍼 Daily milk consumed</h2>
+                <p>Total milk consumed per day (post-feed minus pre-feed weight)</p>
+            </div>
+            <div class="date-range-picker">
+                <label>From <input type="date" id="milkFromDate" /></label>
+                <label>To <input type="date" id="milkToDate" /></label>
+                <button id="milkDateApply" class="btn-apply">Apply</button>
+            </div>
+            <canvas id="milkConsumedChart"></canvas>
+        </section>
+
+        <section class="chart-card">
+            <div class="section-title">
                 <h2>Grafana Dashboard</h2>
                 <p>Live stats and patterns</p>
             </div>

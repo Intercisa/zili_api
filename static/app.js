@@ -1,12 +1,21 @@
 let weightChart = null;
 let statusWeightChart = null;
 let milkTransferChart = null;
+let milkConsumedChart = null;
 let allLogs = [];
 
 document.addEventListener("DOMContentLoaded", () => {
     loadDashboard();
     loadVitamins();
     loadGrowth();
+
+    const today = new Date().toISOString().split("T")[0];
+    const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    document.getElementById("milkFromDate").value = weekAgo;
+    document.getElementById("milkToDate").value = today;
+    document.getElementById("milkDateApply").addEventListener("click", () => {
+        loadMilkConsumedChart();
+    });
 
     document.getElementById("refreshButton").addEventListener("click", () => {
         loadDashboard();
@@ -38,7 +47,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("growthForm").addEventListener("submit", submitGrowth);
 
-    const today = new Date().toISOString().split("T")[0];
     document.getElementById("logDate").value = today;
     document.getElementById("growthDate").value = today;
 
@@ -408,7 +416,7 @@ async function submitEdit(event) {
 }
 
 async function loadDashboard() {
-    await Promise.all([loadSummary(), loadWeightChart(), loadStatusWeightChart(), loadMilkTransferChart(), loadLogs()]);
+    await Promise.all([loadSummary(), loadWeightChart(), loadStatusWeightChart(), loadMilkTransferChart(), loadMilkConsumedChart(), loadLogs()]);
 }
 
 async function loadSummary() {
@@ -505,6 +513,35 @@ async function loadMilkTransferChart() {
             plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
             scales: {
                 y: { beginAtZero: true, title: { display: true, text: "Milk transfer in grams" } },
+                x: { title: { display: true, text: "Date" } }
+            }
+        }
+    });
+}
+
+async function loadMilkConsumedChart() {
+    const from = document.getElementById("milkFromDate").value;
+    const to = document.getElementById("milkToDate").value;
+    const data = await fetch(`/api/milk-consumed?from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+    const ctx = document.getElementById("milkConsumedChart");
+    if (milkConsumedChart) milkConsumedChart.destroy();
+    milkConsumedChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: data.map(i => i.date.substring(0, 10)),
+            datasets: [{
+                label: "Milk consumed (g)",
+                data: data.map(i => i.milkConsumedG),
+                backgroundColor: "#f9a8d4",
+                borderColor: "#db2777",
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: "Milk consumed in grams" } },
                 x: { title: { display: true, text: "Date" } }
             }
         }

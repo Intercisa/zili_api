@@ -219,6 +219,53 @@ canvas { max-height: 320px; }
     background: #ffffff;
 }
 
+.date-range-picker {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.date-range-picker label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #8a5570;
+}
+
+.date-range-picker input[type="date"] {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #f3d5e3;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    color: #4a2438;
+    background: #fdf2f6;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.date-range-picker input[type="date"]:focus {
+    border-color: #db2777;
+    background: #ffffff;
+}
+
+.btn-apply {
+    padding: 0.4rem 1rem;
+    background: #db2777;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-apply:hover { background: #be185d; }
+
 .table-wrapper {
     overflow: auto;
     max-height: 400px;
@@ -662,5 +709,7 @@ tbody tr:hover { background: #fdf2f6; }
     }
 
     .growth-month-label { min-width: unset; }
+
+    .date-range-picker { flex-direction: column; align-items: flex-start; }
 }
 
