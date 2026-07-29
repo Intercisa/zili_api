@@ -6,8 +6,12 @@ let allLogs = [];
 document.addEventListener("DOMContentLoaded", () => {
     loadDashboard();
     loadVitamins();
+    loadGrowth();
 
-    document.getElementById("refreshButton").addEventListener("click", loadDashboard);
+    document.getElementById("refreshButton").addEventListener("click", () => {
+        loadDashboard();
+        loadGrowth();
+    });
     document.getElementById("searchInput").addEventListener("input", event => {
         renderLogsTable(event.target.value);
     });
@@ -26,8 +30,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("editForm").addEventListener("submit", submitEdit);
 
+    document.getElementById("openGrowthFormButton").addEventListener("click", openGrowthForm);
+    document.getElementById("closeGrowthButton").addEventListener("click", closeGrowthForm);
+    document.getElementById("cancelGrowthButton").addEventListener("click", closeGrowthForm);
+    document.getElementById("growthOverlay").addEventListener("click", event => {
+        if (event.target === document.getElementById("growthOverlay")) closeGrowthForm();
+    });
+    document.getElementById("growthForm").addEventListener("submit", submitGrowth);
+
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("logDate").value = today;
+    document.getElementById("growthDate").value = today;
 
     document.getElementById("dVitaminCheck").addEventListener("change", e => {
         const date = new Date().toISOString().slice(0, 10);
@@ -85,7 +98,6 @@ function openForm() {
     document.body.style.overflow = "hidden";
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
-
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, "0");
     const mm = String(now.getMinutes()).padStart(2, "0");
@@ -100,6 +112,162 @@ function closeForm() {
     document.getElementById("formSuccess").classList.add("hidden");
     const today = new Date().toISOString().split("T")[0];
     document.getElementById("logDate").value = today;
+}
+
+function openGrowthForm() {
+    document.getElementById("growthOverlay").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    document.getElementById("growthError").classList.add("hidden");
+    document.getElementById("growthSuccess").classList.add("hidden");
+}
+
+function closeGrowthForm() {
+    document.getElementById("growthOverlay").classList.add("hidden");
+    document.body.style.overflow = "";
+    document.getElementById("growthForm").reset();
+    document.getElementById("growthError").classList.add("hidden");
+    document.getElementById("growthSuccess").classList.add("hidden");
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("growthDate").value = today;
+}
+
+async function submitGrowth(event) {
+    event.preventDefault();
+    const errorEl = document.getElementById("growthError");
+    const successEl = document.getElementById("growthSuccess");
+    errorEl.classList.add("hidden");
+    successEl.classList.add("hidden");
+
+    const submitBtn = event.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Saving...";
+
+    const getFloat = id => {
+        const val = document.getElementById(id).value.trim();
+        return val === "" ? null : parseFloat(val);
+    };
+    const getInt = id => {
+        const val = document.getElementById(id).value.trim();
+        return val === "" ? null : parseInt(val, 10);
+    };
+
+    const payload = {
+        logDate:  document.getElementById("growthDate").value,
+        weightG:  getInt("growthWeight"),
+        heightCm: getFloat("growthHeight"),
+        headCm:   getFloat("growthHead"),
+    };
+
+    try {
+        const res = await fetch("/api/growth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Server error: ${res.status}`);
+        }
+        successEl.textContent = "Growth measurement saved!";
+        successEl.classList.remove("hidden");
+        setTimeout(() => { closeGrowthForm(); loadGrowth(); }, 1200);
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove("hidden");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Save Measurement";
+    }
+}
+
+async function loadGrowth() {
+    const data = await fetch("/api/growth").then(r => r.json()).catch(() => []);
+    if (!data || data.length === 0) return;
+    renderGrowthLatest(data[data.length - 1]);
+    renderGrowthTimeline(data);
+}
+
+function renderGrowthLatest(latest) {
+    const container = document.getElementById("growthLatest");
+    const weight = latest.weightG ? (latest.weightG / 1000).toFixed(2) + " kg" : "—";
+    const height = latest.heightCm ? latest.heightCm + " cm" : "—";
+    const head   = latest.headCm   ? latest.headCm   + " cm" : "—";
+    const date   = latest.date ? latest.date.substring(0, 10) : "";
+
+    container.innerHTML = `
+        <div class="growth-latest-header">Latest measurement <span class="growth-latest-date">${date}</span></div>
+        <div class="growth-latest-stats">
+            <div class="growth-latest-stat">
+                <div class="growth-latest-icon">⚖️</div>
+                <div class="growth-latest-value">${weight}</div>
+                <div class="growth-latest-label">Weight</div>
+            </div>
+            <div class="growth-latest-stat">
+                <div class="growth-latest-icon">📏</div>
+                <div class="growth-latest-value">${height}</div>
+                <div class="growth-latest-label">Height</div>
+            </div>
+            <div class="growth-latest-stat">
+                <div class="growth-latest-icon">🎀</div>
+                <div class="growth-latest-value">${head}</div>
+                <div class="growth-latest-label">Head</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderGrowthTimeline(data) {
+    const container = document.getElementById("growthTimeline");
+    container.innerHTML = "";
+
+    const byMonth = {};
+    data.forEach(item => {
+        const month = item.date.substring(0, 7);
+        if (!byMonth[month]) byMonth[month] = [];
+        byMonth[month].push(item);
+    });
+
+    const sorted = Object.keys(byMonth).sort().reverse();
+
+    sorted.forEach((month, idx) => {
+        const entries = byMonth[month];
+        const last = entries[entries.length - 1];
+        const prev = sorted[idx + 1] ? byMonth[sorted[idx + 1]][byMonth[sorted[idx + 1]].length - 1] : null;
+
+        const monthLabel = new Date(month + "-01").toLocaleString("default", { month: "long", year: "numeric" });
+
+        const weightVal = last.weightG  ? (last.weightG / 1000).toFixed(2) + " kg" : "—";
+        const heightVal = last.heightCm ? last.heightCm + " cm" : "—";
+        const headVal   = last.headCm   ? last.headCm   + " cm" : "—";
+
+        const weightDiff = prev && prev.weightG  && last.weightG  ? "+" + ((last.weightG  - prev.weightG)  / 1000).toFixed(2) + " kg" : null;
+        const heightDiff = prev && prev.heightCm && last.heightCm ? "+" + (last.heightCm - prev.heightCm).toFixed(1) + " cm" : null;
+        const headDiff   = prev && prev.headCm   && last.headCm   ? "+" + (last.headCm   - prev.headCm).toFixed(1)   + " cm" : null;
+
+        const card = document.createElement("div");
+        card.className = "growth-month-card";
+        card.innerHTML = `
+            <div class="growth-month-label">${monthLabel}</div>
+            <div class="growth-month-stats">
+                <div class="growth-month-stat">
+                    <span class="growth-month-icon">⚖️</span>
+                    <span class="growth-month-value">${weightVal}</span>
+                    ${weightDiff ? `<span class="growth-month-diff">${weightDiff}</span>` : ""}
+                </div>
+                <div class="growth-month-stat">
+                    <span class="growth-month-icon">📏</span>
+                    <span class="growth-month-value">${heightVal}</span>
+                    ${heightDiff ? `<span class="growth-month-diff">${heightDiff}</span>` : ""}
+                </div>
+                <div class="growth-month-stat">
+                    <span class="growth-month-icon">🎀</span>
+                    <span class="growth-month-value">${headVal}</span>
+                    ${headDiff ? `<span class="growth-month-diff">${headDiff}</span>` : ""}
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
 }
 
 async function submitEntry(event) {
@@ -123,6 +291,10 @@ async function submitEntry(event) {
         const val = getValue(id);
         return val === null ? null : parseInt(val, 10);
     };
+    const getFloat = id => {
+        const val = getValue(id);
+        return val === null ? null : parseFloat(val);
+    };
 
     const payload = {
         logDate:            getValue("logDate"),
@@ -132,7 +304,8 @@ async function submitEntry(event) {
         preFeedWeightG:     getInt("preFeedWeightG"),
         postFeedWeightG:    getInt("postFeedWeightG"),
         milkTransferG:      getInt("milkTransferG"),
-        expressedLeftMl:    getInt("expressedLeftMl"),
+        heightCm:           getFloat("heightCm"),
+        headCm:             getFloat("headCm"),
         measurementWeightG: getInt("measurementWeightG"),
     };
 
@@ -169,14 +342,12 @@ function openEditForm(item) {
 
     let timeVal = "";
     if (item.logTime) {
-        if (item.logTime.includes("T")) {
-            timeVal = item.logTime.substring(11, 16);
-        } else {
-            timeVal = item.logTime.substring(0, 5);
-        }
+        timeVal = item.logTime.includes("T") ? item.logTime.substring(11, 16) : item.logTime.substring(0, 5);
     }
     document.getElementById("editLogTime").value = timeVal;
     document.getElementById("editDailySummary").value = item.dailySummary || "";
+    document.getElementById("editHeightCm").value = item.heightCm || "";
+    document.getElementById("editHeadCm").value = item.headCm || "";
 }
 
 function closeEditForm() {
@@ -203,11 +374,15 @@ async function submitEdit(event) {
     const logDate = document.getElementById("editLogDate").value.trim();
     const logTimeRaw = document.getElementById("editLogTime").value.trim();
     const dailySummary = document.getElementById("editDailySummary").value.trim();
+    const heightCmRaw = document.getElementById("editHeightCm").value.trim();
+    const headCmRaw = document.getElementById("editHeadCm").value.trim();
 
     const payload = {
         logDate,
-        logTime: logTimeRaw === "" ? null : logTimeRaw,
+        logTime:     logTimeRaw  === "" ? null : logTimeRaw,
         dailySummary,
+        heightCm:    heightCmRaw === "" ? null : parseFloat(heightCmRaw),
+        headCm:      headCmRaw   === "" ? null : parseFloat(headCmRaw),
     };
 
     try {
@@ -356,7 +531,6 @@ function renderLogsTable(searchText) {
         const row = document.createElement("tr");
 
         const actionsCell = document.createElement("td");
-
         const editBtn = document.createElement("button");
         editBtn.textContent = "✏️";
         editBtn.title = "Edit entry";

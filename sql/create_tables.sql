@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS zili_daily_log (
     pre_feed_weight_g INTEGER,
     post_feed_weight_g INTEGER,
     milk_transfer_g INTEGER,
-    expressed_left_ml INTEGER,
+    height_cm NUMERIC(5,1),
+    head_cm NUMERIC(5,1),
     measurement_weight_g INTEGER
 );
 
@@ -16,4 +17,5 @@ CREATE TABLE IF NOT EXISTS vitamin_checks (
     checked BOOLEAN NOT NULL DEFAULT FALSE,
     date TEXT
 );
+
 

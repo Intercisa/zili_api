@@ -15,6 +15,7 @@
         </div>
         <div class="header-actions">
             <button id="openFormButton">+ Add Entry</button>
+            <button id="openGrowthFormButton">📏 Add Growth</button>
             <button id="refreshButton">Refresh</button>
             <a href="http://sorted-governmental-tion-efficiency.trycloudflare.com/public-dashboards/3ca12fe79dce46beaedf426002d6f1ed?theme=light"
                target="_blank"
@@ -71,8 +72,12 @@
                         <input type="number" id="milkTransferG" name="milkTransferG" placeholder="e.g. 80" />
                     </div>
                     <div class="form-group">
-                        <label for="expressedLeftMl">Expressed left (ml)</label>
-                        <input type="number" id="expressedLeftMl" name="expressedLeftMl" placeholder="e.g. 110" />
+                        <label for="heightCm">Height (cm)</label>
+                        <input type="number" id="heightCm" name="heightCm" step="0.1" placeholder="e.g. 54.0" />
+                    </div>
+                    <div class="form-group">
+                        <label for="headCm">Head circumference (cm)</label>
+                        <input type="number" id="headCm" name="headCm" step="0.1" placeholder="e.g. 34.0" />
                     </div>
                 </div>
                 <div class="form-group full-width">
@@ -127,6 +132,14 @@
                         <label for="editLogTime">Time</label>
                         <input type="time" id="editLogTime" name="editLogTime" step="60" />
                     </div>
+                    <div class="form-group">
+                        <label for="editHeightCm">Height (cm)</label>
+                        <input type="number" id="editHeightCm" name="editHeightCm" step="0.1" placeholder="e.g. 54.0" />
+                    </div>
+                    <div class="form-group">
+                        <label for="editHeadCm">Head circumference (cm)</label>
+                        <input type="number" id="editHeadCm" name="editHeadCm" step="0.1" placeholder="e.g. 34.0" />
+                    </div>
                 </div>
                 <div class="form-group full-width">
                     <label for="editDailySummary">Daily summary</label>
@@ -142,6 +155,42 @@
         </div>
     </div>
 
+    <!-- Growth Entry Modal -->
+    <div id="growthOverlay" class="overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📏 Add Growth Measurement</h2>
+                <button id="closeGrowthButton" class="close-btn">&times;</button>
+            </div>
+            <form id="growthForm" class="entry-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="growthDate">Date <span class="required">*</span></label>
+                        <input type="date" id="growthDate" name="growthDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="growthWeight">Weight (g)</label>
+                        <input type="number" id="growthWeight" name="growthWeight" placeholder="e.g. 5200" />
+                    </div>
+                    <div class="form-group">
+                        <label for="growthHeight">Height (cm)</label>
+                        <input type="number" id="growthHeight" name="growthHeight" step="0.1" placeholder="e.g. 57.0" />
+                    </div>
+                    <div class="form-group">
+                        <label for="growthHead">Head circumference (cm)</label>
+                        <input type="number" id="growthHead" name="growthHead" step="0.1" placeholder="e.g. 36.0" />
+                    </div>
+                </div>
+                <div id="growthError" class="form-error hidden"></div>
+                <div id="growthSuccess" class="form-success hidden"></div>
+                <div class="form-actions">
+                    <button type="button" id="cancelGrowthButton" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Measurement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <main>
         <section class="summary-grid">
             <div class="summary-card"><span class="label">Total logs</span><span id="totalLogs" class="value">-</span></div>
@@ -151,6 +200,15 @@
             <div class="summary-card"><span class="label">Total gain</span><span id="weightGain" class="value">-</span></div>
             <div class="summary-card"><span class="label">Milk records</span><span id="milkEntries" class="value">-</span></div>
             <div class="summary-card"><span class="label">Average milk transfer</span><span id="averageMilk" class="value">-</span></div>
+        </section>
+
+        <section class="chart-card">
+            <div class="section-title">
+                <h2>🌸 Zili's Growth</h2>
+                <p>Monthly measurements — weight, height, head circumference</p>
+            </div>
+            <div id="growthLatest" class="growth-latest"></div>
+            <div id="growthTimeline" class="growth-timeline"></div>
         </section>
 
         <section class="chart-card">
