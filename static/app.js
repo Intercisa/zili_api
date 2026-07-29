@@ -13,8 +13,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     document.getElementById("milkFromDate").value = weekAgo;
     document.getElementById("milkToDate").value = today;
-    document.getElementById("milkDateApply").addEventListener("click", () => {
-        loadMilkConsumedChart();
+    document.getElementById("milkDateApply").addEventListener("click", loadMilkConsumedChart);
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const target = btn.dataset.tab;
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+            btn.classList.add("active");
+            document.getElementById(target).classList.remove("hidden");
+            if (target === "statusWeightTab" && !statusWeightChart) loadStatusWeightChart();
+            if (target === "milkTransferTab" && !milkTransferChart) loadMilkTransferChart();
+        });
     });
 
     document.getElementById("refreshButton").addEventListener("click", () => {
@@ -416,7 +426,7 @@ async function submitEdit(event) {
 }
 
 async function loadDashboard() {
-    await Promise.all([loadSummary(), loadWeightChart(), loadStatusWeightChart(), loadMilkTransferChart(), loadMilkConsumedChart(), loadLogs()]);
+    await Promise.all([loadSummary(), loadWeightChart(), loadMilkConsumedChart(), loadLogs()]);
 }
 
 async function loadSummary() {
