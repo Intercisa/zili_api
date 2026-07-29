@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -33,6 +34,11 @@ type WeightPoint struct {
 type MilkTransferPoint struct {
 	Date         string `json:"date"`
 	MilkTransfer int    `json:"milkTransferG"`
+}
+
+type MilkConsumedPoint struct {
+	Date          string `json:"date"`
+	MilkConsumedG int    `json:"milkConsumedG"`
 }
 
 type GrowthPoint struct {
@@ -97,6 +103,7 @@ func main() {
 	router.GET("/api/weights", getWeights)
 	router.GET("/api/status-weights", getStatusWeights)
 	router.GET("/api/milk-transfer", getMilkTransfer)
+	router.GET("/api/milk-consumed", getMilkConsumed)
 	router.GET("/api/summary", getSummary)
 	router.GET("/api/vitamins", getVitamins)
 	router.PUT("/api/vitamins/:key", putVitamin)
@@ -289,6 +296,38 @@ func getMilkTransfer(c *gin.Context) {
 	for rows.Next() {
 		var item MilkTransferPoint
 		if err := rows.Scan(&item.Date, &item.MilkTransfer); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func getMilkConsumed(c *gin.Context) {
+	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
+	from := c.DefaultQuery("from", time.Now().AddDate(0, 0, -6).Format("2006-01-02"))
+
+	rows, err := db.Query(`
+		SELECT log_date, SUM(post_feed_weight_g - pre_feed_weight_g) as milk_consumed
+		FROM zili_daily_log
+		WHERE pre_feed_weight_g IS NOT NULL
+		  AND post_feed_weight_g IS NOT NULL
+		  AND post_feed_weight_g > pre_feed_weight_g
+		  AND log_date BETWEEN $1 AND $2
+		GROUP BY log_date
+		ORDER BY log_date ASC
+	`, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var data []MilkConsumedPoint
+	for rows.Next() {
+		var item MilkConsumedPoint
+		if err := rows.Scan(&item.Date, &item.MilkConsumedG); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

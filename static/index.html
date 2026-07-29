@@ -212,18 +212,36 @@
         </section>
 
         <section class="chart-card">
-            <div class="section-title"><h2>Weight trend</h2><p>Recorded measurement weight over time</p></div>
-            <canvas id="weightChart"></canvas>
+            <div class="tab-header">
+                <button class="tab-btn active" data-tab="weightTab">Weight trend</button>
+                <button class="tab-btn" data-tab="statusWeightTab">Status weight</button>
+                <button class="tab-btn" data-tab="milkTransferTab">Milk transfer</button>
+            </div>
+            <div id="weightTab" class="tab-panel">
+                <div class="section-title"><p>Recorded measurement weight over time</p></div>
+                <canvas id="weightChart"></canvas>
+            </div>
+            <div id="statusWeightTab" class="tab-panel hidden">
+                <div class="section-title"><p>Recorded status weight over time</p></div>
+                <canvas id="statusWeightChart"></canvas>
+            </div>
+            <div id="milkTransferTab" class="tab-panel hidden">
+                <div class="section-title"><p>Recorded weighed-feed milk transfer values</p></div>
+                <canvas id="milkTransferChart"></canvas>
+            </div>
         </section>
 
         <section class="chart-card">
-            <div class="section-title"><h2>Status weight trend</h2><p>Recorded status weight over time</p></div>
-            <canvas id="statusWeightChart"></canvas>
-        </section>
-
-        <section class="chart-card">
-            <div class="section-title"><h2>Milk transfer</h2><p>Recorded weighed-feed milk transfer values</p></div>
-            <canvas id="milkTransferChart"></canvas>
+            <div class="section-title">
+                <h2>🍼 Daily milk consumed</h2>
+                <p>Total milk consumed per day (post-feed minus pre-feed weight)</p>
+            </div>
+            <div class="date-range-picker">
+                <label>From <input type="date" id="milkFromDate" /></label>
+                <label>To <input type="date" id="milkToDate" /></label>
+                <button id="milkDateApply" class="btn-apply">Apply</button>
+            </div>
+            <canvas id="milkConsumedChart"></canvas>
         </section>
 
         <section class="chart-card">
