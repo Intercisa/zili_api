@@ -1,4 +1,5 @@
 let weightChart = null;
+let statusWeightChart = null;
 let milkTransferChart = null;
 let allLogs = [];
 
@@ -232,7 +233,7 @@ async function submitEdit(event) {
 }
 
 async function loadDashboard() {
-    await Promise.all([loadSummary(), loadWeightChart(), loadMilkTransferChart(), loadLogs()]);
+    await Promise.all([loadSummary(), loadWeightChart(), loadStatusWeightChart(), loadMilkTransferChart(), loadLogs()]);
 }
 
 async function loadSummary() {
@@ -259,6 +260,37 @@ async function loadWeightChart() {
                 data: data.map(i => i.weight),
                 borderColor: "#7b174e",
                 backgroundColor: "rgba(235, 63, 126, 0.88)",
+                borderWidth: 3,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
+            scales: {
+                y: { title: { display: true, text: "Weight in grams" } },
+                x: { title: { display: true, text: "Date" } }
+            }
+        }
+    });
+}
+
+async function loadStatusWeightChart() {
+    const data = await fetch("/api/status-weights").then(r => r.json());
+    const ctx = document.getElementById("statusWeightChart");
+    if (statusWeightChart) statusWeightChart.destroy();
+    statusWeightChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: data.map(i => i.date.substring(0, 10)),
+            datasets: [{
+                label: "Status weight (g)",
+                data: data.map(i => i.weight),
+                borderColor: "#f472b6",
+                backgroundColor: "rgba(244, 114, 182, 0.15)",
                 borderWidth: 3,
                 pointRadius: 4,
                 pointHoverRadius: 7,
@@ -359,7 +391,7 @@ function renderLogsTable(searchText) {
 }
 
 async function deleteEntry(item) {
-    if (!confirm(`Delete entry from ${item.logDate}?`)) return;
+    if (!confirm("Delete entry from " + item.logDate + "?")) return;
     const res = await fetch(`/api/logs/${item.id}`, { method: "DELETE" });
     if (res.ok) loadDashboard();
     else alert("Failed to delete.");

@@ -91,6 +91,8 @@ func main() {
 	router.GET("/api/summary", getSummary)
 	router.GET("/api/vitamins", getVitamins)
 	router.PUT("/api/vitamins/:key", putVitamin)
+	router.GET("/api/status-weights", getStatusWeights)
+
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -196,6 +198,32 @@ func getLogByDate(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, logs)
 }
+
+func getStatusWeights(c *gin.Context) {
+    rows, err := db.Query(`
+        SELECT log_date, status_weight_g
+        FROM zili_daily_log
+        WHERE status_weight_g IS NOT NULL
+        ORDER BY log_date, id
+    `)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    defer rows.Close()
+
+    var data []WeightPoint
+    for rows.Next() {
+        var item WeightPoint
+        if err := rows.Scan(&item.Date, &item.Weight); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
+        data = append(data, item)
+    }
+    c.JSON(http.StatusOK, data)
+}
+
 
 func getWeights(c *gin.Context) {
 	rows, err := db.Query(`
