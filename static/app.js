@@ -4,15 +4,15 @@ let milkConsumedChart = null;
 let allLogs = [];
 
 document.addEventListener("DOMContentLoaded", () => {
-    loadDashboard();
-    loadVitamins();
-    loadGrowth();
-
     const today = new Date().toISOString().split("T")[0];
     const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     document.getElementById("milkFromDate").value = weekAgo;
     document.getElementById("milkToDate").value = today;
     document.getElementById("milkDateApply").addEventListener("click", loadMilkConsumedChart);
+
+    loadDashboard();
+    loadVitamins();
+    loadGrowth();
 
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -74,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".quick-tag").forEach(cb => {
         cb.addEventListener("change", syncQuickTags);
     });
+
 });
 
 function syncQuickTags() {
@@ -532,6 +533,37 @@ async function loadMilkConsumedChart() {
 async function loadLogs() {
     allLogs = await fetch("/api/logs").then(r => r.json());
     renderLogsTable("");
+    updateAwakeStatus();
+}
+
+function updateAwakeStatus() {
+    const today = new Date().toISOString().split("T")[0];
+    const todayLogs = allLogs
+        .filter(l => l.logDate && l.logDate.substring(0, 10) === today && l.logTime)
+        .sort((a, b) => a.logTime.localeCompare(b.logTime));
+
+    const sleepTags = ["elaludt", "cicin elaludt"];
+    const lastEbredt = [...todayLogs].reverse().find(l => l.dailySummary && l.dailySummary.includes("ébredt"));
+
+    const el = document.getElementById("awakeStatus");
+    if (!lastEbredt) { el.textContent = "-"; return; }
+
+    const ebredtTime = lastEbredt.logTime.includes("T") ? lastEbredt.logTime.substring(11, 16) : lastEbredt.logTime.substring(0, 5);
+    const newerSleep = todayLogs.find(l =>
+        l.logTime.localeCompare(lastEbredt.logTime) > 0 &&
+        l.dailySummary && sleepTags.some(t => l.dailySummary.includes(t))
+    );
+
+    if (newerSleep) { el.textContent = "alszik"; return; }
+
+    const [h, m] = ebredtTime.split(":").map(Number);
+    const now = new Date();
+    const wakeDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    const diffMs = now - wakeDate;
+    if (diffMs < 0) { el.textContent = "-"; return; }
+    const diffH = Math.floor(diffMs / 3600000);
+    const diffM = Math.floor((diffMs % 3600000) / 60000);
+    el.textContent = diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m`;
 }
 
 function renderLogsTable(searchText) {
