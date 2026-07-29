@@ -12,16 +12,17 @@ import (
 )
 
 type DailyLog struct {
-	ID                int     `json:"id"`
-	LogDate           string  `json:"logDate"`
-	LogTime           *string `json:"logTime"`
-	DailySummary      string  `json:"dailySummary"`
-	StatusWeightG     *int    `json:"statusWeightG"`
-	PreFeedWeightG    *int    `json:"preFeedWeightG"`
-	PostFeedWeightG   *int    `json:"postFeedWeightG"`
-	MilkTransferG     *int    `json:"milkTransferG"`
-	ExpressedLeftMl   *int    `json:"expressedLeftMl"`
-	MeasurementWeight *int    `json:"measurementWeightG"`
+	ID                int      `json:"id"`
+	LogDate           string   `json:"logDate"`
+	LogTime           *string  `json:"logTime"`
+	DailySummary      string   `json:"dailySummary"`
+	StatusWeightG     *int     `json:"statusWeightG"`
+	PreFeedWeightG    *int     `json:"preFeedWeightG"`
+	PostFeedWeightG   *int     `json:"postFeedWeightG"`
+	MilkTransferG     *int     `json:"milkTransferG"`
+	HeightCm          *float64 `json:"heightCm"`
+	HeadCm            *float64 `json:"headCm"`
+	MeasurementWeight *int     `json:"measurementWeightG"`
 }
 
 type WeightPoint struct {
@@ -32,6 +33,13 @@ type WeightPoint struct {
 type MilkTransferPoint struct {
 	Date         string `json:"date"`
 	MilkTransfer int    `json:"milkTransferG"`
+}
+
+type GrowthPoint struct {
+	Date     string   `json:"date"`
+	WeightG  *int     `json:"weightG"`
+	HeightCm *float64 `json:"heightCm"`
+	HeadCm   *float64 `json:"headCm"`
 }
 
 type Summary struct {
@@ -87,12 +95,13 @@ func main() {
 	router.PUT("/api/logs/:id", updateLog)
 	router.DELETE("/api/logs/:id", deleteLog)
 	router.GET("/api/weights", getWeights)
+	router.GET("/api/status-weights", getStatusWeights)
 	router.GET("/api/milk-transfer", getMilkTransfer)
 	router.GET("/api/summary", getSummary)
 	router.GET("/api/vitamins", getVitamins)
 	router.PUT("/api/vitamins/:key", putVitamin)
-	router.GET("/api/status-weights", getStatusWeights)
-
+	router.GET("/api/growth", getGrowth)
+	router.POST("/api/growth", createGrowth)
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -127,7 +136,7 @@ func getLogs(c *gin.Context) {
 	rows, err := db.Query(`
 		SELECT id, log_date, log_time, daily_summary, status_weight_g,
 		       pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
-		       expressed_left_ml, measurement_weight_g
+		       height_cm, head_cm, measurement_weight_g
 		FROM zili_daily_log
 		ORDER BY log_date DESC, COALESCE(log_time, '00:00') DESC, id DESC
 	`)
@@ -141,10 +150,11 @@ func getLogs(c *gin.Context) {
 	for rows.Next() {
 		var entry DailyLog
 		var logTime sql.NullString
+		var heightCm, headCm sql.NullFloat64
 		err := rows.Scan(
 			&entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
 			&entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
-			&entry.MilkTransferG, &entry.ExpressedLeftMl, &entry.MeasurementWeight,
+			&entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -152,6 +162,12 @@ func getLogs(c *gin.Context) {
 		}
 		if logTime.Valid {
 			entry.LogTime = &logTime.String
+		}
+		if heightCm.Valid {
+			entry.HeightCm = &heightCm.Float64
+		}
+		if headCm.Valid {
+			entry.HeadCm = &headCm.Float64
 		}
 		logs = append(logs, entry)
 	}
@@ -167,7 +183,7 @@ func getLogByDate(c *gin.Context) {
 	rows, err := db.Query(`
 		SELECT id, log_date, log_time, daily_summary, status_weight_g,
 		       pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
-		       expressed_left_ml, measurement_weight_g
+		       height_cm, head_cm, measurement_weight_g
 		FROM zili_daily_log
 		WHERE log_date = $1
 		ORDER BY COALESCE(log_time, '00:00'), id
@@ -182,10 +198,11 @@ func getLogByDate(c *gin.Context) {
 	for rows.Next() {
 		var entry DailyLog
 		var logTime sql.NullString
+		var heightCm, headCm sql.NullFloat64
 		err := rows.Scan(
 			&entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
 			&entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
-			&entry.MilkTransferG, &entry.ExpressedLeftMl, &entry.MeasurementWeight,
+			&entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -194,42 +211,47 @@ func getLogByDate(c *gin.Context) {
 		if logTime.Valid {
 			entry.LogTime = &logTime.String
 		}
+		if heightCm.Valid {
+			entry.HeightCm = &heightCm.Float64
+		}
+		if headCm.Valid {
+			entry.HeadCm = &headCm.Float64
+		}
 		logs = append(logs, entry)
 	}
 	c.JSON(http.StatusOK, logs)
 }
-
-func getStatusWeights(c *gin.Context) {
-    rows, err := db.Query(`
-        SELECT log_date, status_weight_g
-        FROM zili_daily_log
-        WHERE status_weight_g IS NOT NULL
-        ORDER BY log_date, id
-    `)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-    defer rows.Close()
-
-    var data []WeightPoint
-    for rows.Next() {
-        var item WeightPoint
-        if err := rows.Scan(&item.Date, &item.Weight); err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
-        data = append(data, item)
-    }
-    c.JSON(http.StatusOK, data)
-}
-
 
 func getWeights(c *gin.Context) {
 	rows, err := db.Query(`
 		SELECT log_date, measurement_weight_g
 		FROM zili_daily_log
 		WHERE measurement_weight_g IS NOT NULL
+		ORDER BY log_date, id
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var data []WeightPoint
+	for rows.Next() {
+		var item WeightPoint
+		if err := rows.Scan(&item.Date, &item.Weight); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func getStatusWeights(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT log_date, status_weight_g
+		FROM zili_daily_log
+		WHERE status_weight_g IS NOT NULL
 		ORDER BY log_date, id
 	`)
 	if err != nil {
@@ -275,6 +297,67 @@ func getMilkTransfer(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+func getGrowth(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT log_date, measurement_weight_g, height_cm, head_cm
+		FROM zili_daily_log
+		WHERE height_cm IS NOT NULL OR head_cm IS NOT NULL
+		ORDER BY log_date ASC
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var data []GrowthPoint
+	for rows.Next() {
+		var item GrowthPoint
+		var weightG sql.NullInt64
+		var heightCm, headCm sql.NullFloat64
+		if err := rows.Scan(&item.Date, &weightG, &heightCm, &headCm); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if weightG.Valid {
+			v := int(weightG.Int64)
+			item.WeightG = &v
+		}
+		if heightCm.Valid {
+			item.HeightCm = &heightCm.Float64
+		}
+		if headCm.Valid {
+			item.HeadCm = &headCm.Float64
+		}
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func createGrowth(c *gin.Context) {
+	var body struct {
+		LogDate  string   `json:"logDate"`
+		WeightG  *int     `json:"weightG"`
+		HeightCm *float64 `json:"heightCm"`
+		HeadCm   *float64 `json:"headCm"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO zili_daily_log (log_date, measurement_weight_g, height_cm, head_cm, daily_summary)
+		VALUES ($1, $2, $3, $4, '')
+		RETURNING id
+	`, body.LogDate, body.WeightG, body.HeightCm, body.HeadCm).Scan(&id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
 func createLog(c *gin.Context) {
 	var entry DailyLog
 	if err := c.ShouldBindJSON(&entry); err != nil {
@@ -287,13 +370,13 @@ func createLog(c *gin.Context) {
 		INSERT INTO zili_daily_log (
 			log_date, log_time, daily_summary, status_weight_g,
 			pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
-			expressed_left_ml, measurement_weight_g
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+			height_cm, head_cm, measurement_weight_g
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		RETURNING id
 	`,
 		entry.LogDate, entry.LogTime, entry.DailySummary,
 		entry.StatusWeightG, entry.PreFeedWeightG, entry.PostFeedWeightG,
-		entry.MilkTransferG, entry.ExpressedLeftMl, entry.MeasurementWeight,
+		entry.MilkTransferG, entry.HeightCm, entry.HeadCm, entry.MeasurementWeight,
 	).Scan(&id)
 
 	if err != nil {
@@ -306,17 +389,19 @@ func createLog(c *gin.Context) {
 func updateLog(c *gin.Context) {
 	id := c.Param("id")
 	var body struct {
-		DailySummary string  `json:"dailySummary"`
-		LogDate      string  `json:"logDate"`
-		LogTime      *string `json:"logTime"`
+		DailySummary string   `json:"dailySummary"`
+		LogDate      string   `json:"logDate"`
+		LogTime      *string  `json:"logTime"`
+		HeightCm     *float64 `json:"heightCm"`
+		HeadCm       *float64 `json:"headCm"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	_, err := db.Exec(
-		`UPDATE zili_daily_log SET daily_summary = $1, log_date = $2, log_time = $3 WHERE id = $4`,
-		body.DailySummary, body.LogDate, body.LogTime, id,
+		`UPDATE zili_daily_log SET daily_summary = $1, log_date = $2, log_time = $3, height_cm = $4, head_cm = $5 WHERE id = $6`,
+		body.DailySummary, body.LogDate, body.LogTime, body.HeightCm, body.HeadCm, id,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

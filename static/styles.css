@@ -54,6 +54,21 @@ body {
 
 #openFormButton:hover { background: #be185d; }
 
+#openGrowthFormButton {
+    padding: 0.5rem 1.25rem;
+    background: #fce7f3;
+    color: #9d174d;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+#openGrowthFormButton:hover { background: #fbcfe8; }
+
 #refreshButton {
     padding: 0.5rem 1.25rem;
     background: #fbcfe8;
@@ -476,8 +491,119 @@ tbody tr:hover { background: #fdf2f6; }
 
 .btn-secondary:hover { background: #fbe9f1; }
 
+/* Growth section */
+.growth-latest {
+    background: linear-gradient(135deg, #fdf2f6 0%, #fce7f3 100%);
+    border: 1px solid #f3d5e3;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.growth-latest-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a3728a;
+    margin-bottom: 1rem;
+}
+
+.growth-latest-date {
+    color: #db2777;
+    font-weight: 700;
+}
+
+.growth-latest-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.growth-latest-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    border: 1px solid #f3d5e3;
+    box-shadow: 0 1px 3px rgba(190, 24, 93, 0.06);
+}
+
+.growth-latest-icon { font-size: 1.75rem; }
+
+.growth-latest-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #be185d;
+}
+
+.growth-latest-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a3728a;
+}
+
+.growth-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.growth-month-card {
+    border: 1px solid #f3d5e3;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.growth-month-label {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #4a2438;
+    min-width: 130px;
+}
+
+.growth-month-stats {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.growth-month-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.growth-month-icon { font-size: 1rem; }
+
+.growth-month-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #4a2438;
+}
+
+.growth-month-diff {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #16a34a;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+}
+
 @media (max-width: 900px) {
     .summary-grid { grid-template-columns: repeat(3, 1fr); }
+    .growth-latest-stats { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 600px) {
@@ -488,9 +614,10 @@ tbody tr:hover { background: #fdf2f6; }
         padding: 1rem;
     }
 
-    .header-actions { width: 100%; }
+    .header-actions { width: 100%; flex-wrap: wrap; }
 
     #openFormButton,
+    #openGrowthFormButton,
     #refreshButton,
     .btn-grafana {
         flex: 1;
@@ -525,5 +652,15 @@ tbody tr:hover { background: #fdf2f6; }
         flex-wrap: wrap;
         gap: 0.75rem;
     }
+
+    .growth-latest-stats { grid-template-columns: repeat(3, 1fr); }
+
+    .growth-month-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .growth-month-label { min-width: unset; }
 }
 
