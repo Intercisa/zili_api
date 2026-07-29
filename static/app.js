@@ -1,6 +1,5 @@
 let weightChart = null;
 let statusWeightChart = null;
-let milkTransferChart = null;
 let milkConsumedChart = null;
 let allLogs = [];
 
@@ -23,7 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.classList.add("active");
             document.getElementById(target).classList.remove("hidden");
             if (target === "statusWeightTab" && !statusWeightChart) loadStatusWeightChart();
-            if (target === "milkTransferTab" && !milkTransferChart) loadMilkTransferChart();
         });
     });
 
@@ -496,33 +494,6 @@ async function loadStatusWeightChart() {
             plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
             scales: {
                 y: { title: { display: true, text: "Weight in grams" } },
-                x: { title: { display: true, text: "Date" } }
-            }
-        }
-    });
-}
-
-async function loadMilkTransferChart() {
-    const data = await fetch("/api/milk-transfer").then(r => r.json());
-    const ctx = document.getElementById("milkTransferChart");
-    if (milkTransferChart) milkTransferChart.destroy();
-    milkTransferChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-            labels: data.map(i => i.date.substring(0, 10)),
-            datasets: [{
-                label: "Milk transfer (g)",
-                data: data.map(i => i.milkTransferG),
-                backgroundColor: "#eb6da2",
-                borderColor: "#ac3980",
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
-            scales: {
-                y: { beginAtZero: true, title: { display: true, text: "Milk transfer in grams" } },
                 x: { title: { display: true, text: "Date" } }
             }
         }
