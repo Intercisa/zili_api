@@ -687,11 +687,15 @@ func getSleepAwake(c *gin.Context) {
 
 func getCurrentStatus(c *gin.Context) {
 	now := time.Now()
-	today := now.Format("2006-01-02")
-	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+	today := now.UTC().Format("2006-01-02")
+	yesterday := now.UTC().AddDate(0, 0, -1).Format("2006-01-02")
 
 	rows, err := db.Query(`
-		SELECT log_date::text, log_time::text, daily_summary
+		SELECT log_date::text, log_time::text, daily_summary,
+			EXTRACT(EPOCH FROM (
+				NOW() AT TIME ZONE 'Europe/Budapest'
+				- (log_date::text || ' ' || log_time::text)::timestamp
+			)) AS seconds_ago
 		FROM zili_daily_log
 		WHERE log_time IS NOT NULL AND daily_summary IS NOT NULL
 		  AND (daily_summary ILIKE '%elaludt%' OR daily_summary ILIKE '%ébredt%')
@@ -704,11 +708,16 @@ func getCurrentStatus(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	type logRow struct{ Date, Time, Summary string }
+	type logRow struct {
+		Date       string
+		Time       string
+		Summary    string
+		SecondsAgo float64
+	}
 	var logs []logRow
 	for rows.Next() {
 		var r logRow
-		rows.Scan(&r.Date, &r.Time, &r.Summary)
+		rows.Scan(&r.Date, &r.Time, &r.Summary, &r.SecondsAgo)
 		if len(r.Date) > 10 { r.Date = r.Date[:10] }
 		if len(r.Time) > 5 { r.Time = r.Time[:5] }
 		logs = append(logs, r)
@@ -716,42 +725,41 @@ func getCurrentStatus(c *gin.Context) {
 
 	sleepTags := []string{"elaludt", "cicin elaludt"}
 
-	var lastSleep, lastWake *time.Time
+	type entry struct {
+		SecondsAgo float64
+	}
+	var lastSleep, lastWake *entry
 	for _, l := range logs {
 		isSleep := false
 		for _, tag := range sleepTags {
 			if strings.Contains(l.Summary, tag) { isSleep = true; break }
 		}
-		parsed, _ := time.ParseInLocation("2006-01-02 15:04", l.Date+" "+l.Time, time.Local)
-		if isSleep { lastSleep = &parsed }
-		if strings.Contains(l.Summary, "ébredt") { lastWake = &parsed }
+		e := &entry{SecondsAgo: l.SecondsAgo}
+		if isSleep { lastSleep = e }
+		if strings.Contains(l.Summary, "ébredt") { lastWake = e }
 	}
 
-	fmtDur := func(ms int64) string {
-		h := ms / 3600000
-		m := (ms % 3600000) / 60000
+	fmtDur := func(seconds float64) string {
+		total := int64(seconds)
+		h := total / 3600
+		m := (total % 3600) / 60
 		if h > 0 { return fmt.Sprintf("%dh %dm", h, m) }
 		return fmt.Sprintf("%dm", m)
 	}
 
-	// awake status
-	isSleeping := lastSleep != nil && (lastWake == nil || lastSleep.After(*lastWake))
+	isSleeping := lastSleep != nil && (lastWake == nil || lastSleep.SecondsAgo < lastWake.SecondsAgo)
 	var statusDur, statusState string
 	if isSleeping {
-		diff := now.Sub(*lastSleep).Milliseconds()
-		statusDur = fmtDur(diff)
+		statusDur = fmtDur(lastSleep.SecondsAgo)
 		statusState = "sleep"
 	} else if lastWake != nil {
-		diff := now.Sub(*lastWake).Milliseconds()
-		statusDur = fmtDur(diff)
+		statusDur = fmtDur(lastWake.SecondsAgo)
 		statusState = "awake"
 	} else {
 		statusDur = ""
 		statusState = "sleep"
 	}
 
-	// today sleep/awake totals
-	midnight, _ := time.ParseInLocation("2006-01-02", today, time.Local)
 	result := calcSleepAwake(func() []sleepLog {
 		var sl []sleepLog
 		for _, l := range logs {
@@ -767,7 +775,6 @@ func getCurrentStatus(c *gin.Context) {
 			awakeMin = r.AwakeMin
 		}
 	}
-	_ = midnight
 
 	c.JSON(http.StatusOK, gin.H{
 		"state":    statusState,
