@@ -109,6 +109,8 @@ func main() {
 	router.PUT("/api/vitamins/:key", putVitamin)
 	router.GET("/api/growth", getGrowth)
 	router.POST("/api/growth", createGrowth)
+	router.GET("/api/settings/:key", getSetting)
+	router.PUT("/api/settings/:key", putSetting)
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -551,5 +553,40 @@ func putVitamin(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"key": key, "checked": body.Checked})
+}
+
+func getSetting(c *gin.Context) {
+	key := c.Param("key")
+	var value string
+	err := db.QueryRow(`SELECT value FROM app_settings WHERE key = $1`, key).Scan(&value)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"value": nil})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"value": value})
+}
+
+func putSetting(c *gin.Context) {
+	key := c.Param("key")
+	var body struct {
+		Value string `json:"value"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	_, err := db.Exec(`
+		INSERT INTO app_settings (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = $2
+	`, key, body.Value)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"key": key, "value": body.Value})
 }
 

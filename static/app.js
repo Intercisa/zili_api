@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDashboard();
     loadVitamins();
     loadGrowth();
+    loadBirthDate();
 
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -537,28 +538,43 @@ async function loadLogs() {
 }
 
 function updateAwakeStatus() {
-    const today = new Date().toISOString().split("T")[0];
-    const todayLogs = allLogs
-        .filter(l => l.logDate && l.logDate.substring(0, 10) === today && l.logTime)
-        .sort((a, b) => a.logTime.localeCompare(b.logTime));
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const yesterday = new Date(now - 86400000).toISOString().split("T")[0];
 
     const sleepTags = ["elaludt", "cicin elaludt"];
-    const lastEbredt = [...todayLogs].reverse().find(l => l.dailySummary && l.dailySummary.includes("ébredt"));
+
+    // Convert a log entry to an absolute Date for cross-day comparison
+    function logToDate(l) {
+        const t = l.logTime.includes("T") ? l.logTime.substring(11, 16) : l.logTime.substring(0, 5);
+        const [h, m] = t.split(":").map(Number);
+        const d = new Date(l.logDate.substring(0, 10));
+        d.setHours(h, m, 0, 0);
+        return d;
+    }
+
+    const relevantLogs = allLogs
+        .filter(l => l.logDate && l.logTime && (l.logDate.substring(0, 10) === today || l.logDate.substring(0, 10) === yesterday))
+        .sort((a, b) => logToDate(a) - logToDate(b));
+
+    const lastSleep  = [...relevantLogs].reverse().find(l => l.dailySummary && sleepTags.some(t => l.dailySummary.includes(t)));
+    const lastEbredt = [...relevantLogs].reverse().find(l => l.dailySummary && l.dailySummary.includes("ébredt"));
 
     const el = document.getElementById("awakeStatus");
-    if (!lastEbredt) { el.textContent = "-"; return; }
 
-    const ebredtTime = lastEbredt.logTime.includes("T") ? lastEbredt.logTime.substring(11, 16) : lastEbredt.logTime.substring(0, 5);
-    const newerSleep = todayLogs.find(l =>
-        l.logTime.localeCompare(lastEbredt.logTime) > 0 &&
-        l.dailySummary && sleepTags.some(t => l.dailySummary.includes(t))
-    );
+    const isSleeping = lastSleep && (!lastEbredt || logToDate(lastSleep) > logToDate(lastEbredt));
 
-    if (newerSleep) { el.textContent = "alszik"; return; }
+    if (isSleeping) {
+        const diffMs = now - logToDate(lastSleep);
+        const diffH = Math.floor(diffMs / 3600000);
+        const diffM = Math.floor((diffMs % 3600000) / 60000);
+        el.textContent = `alszik ${diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m`}`;
+        return;
+    }
 
-    const [h, m] = ebredtTime.split(":").map(Number);
-    const now = new Date();
-    const wakeDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    if (!lastEbredt) { el.textContent = "alszik"; return; }
+
+    const wakeDate = logToDate(lastEbredt);
     const diffMs = now - wakeDate;
     if (diffMs < 0) { el.textContent = "-"; return; }
     const diffH = Math.floor(diffMs / 3600000);
@@ -624,5 +640,53 @@ async function deleteEntry(item) {
 function formatGram(value) {
     if (value === null || value === undefined) return "-";
     return `${value} g`;
+}
+
+async function loadBirthDate() {
+    const res = await fetch("/api/settings/birth-date");
+    if (res.status === 404) {
+        document.getElementById("ageStatus").classList.add("hidden");
+        document.getElementById("birthDateForm").classList.remove("hidden");
+        return;
+    }
+    const data = await res.json();
+    document.getElementById("birthDateForm").classList.add("hidden");
+    document.getElementById("ageStatus").classList.remove("hidden");
+    updateAgeDisplay(data.value);
+}
+
+async function saveBirthDate() {
+    const value = document.getElementById("birthDateInput").value;
+    if (!value) return;
+    await fetch("/api/settings/birth-date", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+    });
+    document.getElementById("birthDateForm").classList.add("hidden");
+    document.getElementById("ageStatus").classList.remove("hidden");
+    updateAgeDisplay(value);
+}
+
+function updateAgeDisplay(birthDateStr) {
+    const birth = new Date(birthDateStr);
+    const now = new Date();
+    const totalDays = Math.floor((now - birth) / 86400000);
+    const totalWeeks = Math.floor(totalDays / 7);
+
+    const years = now.getFullYear() - birth.getFullYear();
+    const monthDiff = now.getMonth() - birth.getMonth() + years * 12;
+    const months = now.getDate() >= birth.getDate() ? monthDiff : monthDiff - 1;
+
+    let text;
+    if (months < 6) {
+        text = `${totalWeeks} hetes`;
+    } else if (months < 12) {
+        text = `${months} hónapos (${totalWeeks} hetes)`;
+    } else {
+        const y = Math.floor(months / 12);
+        text = `${y} éves (${totalWeeks} hetes)`;
+    }
+    document.getElementById("ageStatus").textContent = text;
 }
 
