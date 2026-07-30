@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -113,6 +114,7 @@ func main() {
 	router.GET("/api/settings/:key", getSetting)
 	router.PUT("/api/settings/:key", putSetting)
 	router.GET("/api/sleep-awake", getSleepAwake)
+	router.GET("/api/current-status", getCurrentStatus)
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -144,13 +146,21 @@ func health(c *gin.Context) {
 }
 
 func getLogs(c *gin.Context) {
+	limit := 100
+	offset := 0
+	if v := c.Query("offset"); v != "" {
+		fmt.Sscanf(v, "%d", &offset)
+	}
+	search := c.Query("search")
 	rows, err := db.Query(`
 		SELECT id, log_date, log_time, daily_summary, status_weight_g,
 		       pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
 		       height_cm, head_cm, measurement_weight_g
 		FROM zili_daily_log
+		WHERE ($3 = '' OR daily_summary ILIKE '%' || $3 || '%')
 		ORDER BY log_date DESC, COALESCE(log_time, '00:00') DESC, id DESC
-	`)
+		LIMIT $1 OFFSET $2
+	`, limit, offset, search)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -673,6 +683,102 @@ func getSleepAwake(c *gin.Context) {
 		logs = append(logs, r)
 	}
 	c.JSON(http.StatusOK, calcSleepAwake(logs, from, to, time.Now()))
+}
+
+func getCurrentStatus(c *gin.Context) {
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+
+	rows, err := db.Query(`
+		SELECT log_date::text, log_time::text, daily_summary
+		FROM zili_daily_log
+		WHERE log_time IS NOT NULL AND daily_summary IS NOT NULL
+		  AND (daily_summary ILIKE '%elaludt%' OR daily_summary ILIKE '%ébredt%')
+		  AND log_date IN ($1, $2)
+		ORDER BY log_date, log_time
+	`, yesterday, today)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	type logRow struct{ Date, Time, Summary string }
+	var logs []logRow
+	for rows.Next() {
+		var r logRow
+		rows.Scan(&r.Date, &r.Time, &r.Summary)
+		if len(r.Date) > 10 { r.Date = r.Date[:10] }
+		if len(r.Time) > 5 { r.Time = r.Time[:5] }
+		logs = append(logs, r)
+	}
+
+	toTime := func(date, t string) time.Time {
+		dt, _ := time.ParseInLocation("2006-01-02 15:04", date+" "+t, time.Local)
+		return dt
+	}
+	sleepTags := []string{"elaludt", "cicin elaludt"}
+
+	var lastSleep, lastWake *time.Time
+	for _, l := range logs {
+		isSleep := false
+		for _, tag := range sleepTags {
+			if strings.Contains(l.Summary, tag) { isSleep = true; break }
+		}
+		t := toTime(l.Date, l.Time)
+		if isSleep { lastSleep = &t }
+		if strings.Contains(l.Summary, "ébredt") { lastWake = &t }
+	}
+
+	fmtDur := func(ms int64) string {
+		h := ms / 3600000
+		m := (ms % 3600000) / 60000
+		if h > 0 { return fmt.Sprintf("%dh %dm", h, m) }
+		return fmt.Sprintf("%dm", m)
+	}
+
+	// awake status
+	isSleeping := lastSleep != nil && (lastWake == nil || lastSleep.After(*lastWake))
+	var statusDur, statusState string
+	if isSleeping {
+		diff := now.Sub(*lastSleep).Milliseconds()
+		statusDur = fmtDur(diff)
+		statusState = "sleep"
+	} else if lastWake != nil {
+		diff := now.Sub(*lastWake).Milliseconds()
+		statusDur = fmtDur(diff)
+		statusState = "awake"
+	} else {
+		statusDur = ""
+		statusState = "sleep"
+	}
+
+	// today sleep/awake totals
+	midnight, _ := time.ParseInLocation("2006-01-02", today, time.Local)
+	result := calcSleepAwake(func() []sleepLog {
+		var sl []sleepLog
+		for _, l := range logs {
+			sl = append(sl, sleepLog{Date: l.Date, Time: l.Time, Summary: l.Summary})
+		}
+		return sl
+	}(), yesterday, today, now)
+
+	var sleepMin, awakeMin int
+	for _, r := range result {
+		if r.Date == today {
+			sleepMin = r.SleepMin
+			awakeMin = r.AwakeMin
+		}
+	}
+	_ = midnight
+
+	c.JSON(http.StatusOK, gin.H{
+		"state":    statusState,
+		"duration": statusDur,
+		"sleepMin": sleepMin,
+		"awakeMin": awakeMin,
+	})
 }
 
 func getSetting(c *gin.Context) {
