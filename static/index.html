@@ -6,6 +6,8 @@
     <title>Zili Dashboard</title>
     <link rel="stylesheet" href="/static/styles.css"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script>Chart.register(ChartDataLabels);</script>
 </head>
 <body>
 <header class="page-header">
@@ -226,14 +228,34 @@
         <div class="tab-header">
             <button class="tab-btn active" data-tab="weightTab">Weight trend</button>
             <button class="tab-btn" data-tab="statusWeightTab">Status weight</button>
+            <button class="tab-btn" data-tab="sleepAwakeTab">Sleep / Awake</button>
         </div>
         <div id="weightTab" class="tab-panel">
             <div class="section-title"><p>Recorded measurement weight over time</p></div>
+            <div class="date-range-picker">
+                <label>From <input type="date" id="weightFromDate" /></label>
+                <label>To <input type="date" id="weightToDate" /></label>
+                <button id="weightDateApply" class="btn-apply">Apply</button>
+            </div>
             <canvas id="weightChart"></canvas>
         </div>
         <div id="statusWeightTab" class="tab-panel hidden">
             <div class="section-title"><p>Recorded status weight over time</p></div>
+            <div class="date-range-picker">
+                <label>From <input type="date" id="statusWeightFromDate" /></label>
+                <label>To <input type="date" id="statusWeightToDate" /></label>
+                <button id="statusWeightDateApply" class="btn-apply">Apply</button>
+            </div>
             <canvas id="statusWeightChart"></canvas>
+        </div>
+        <div id="sleepAwakeTab" class="tab-panel hidden">
+            <div class="section-title"><p>Daily sleep and awake time</p></div>
+            <div class="date-range-picker">
+                <label>From <input type="date" id="sleepFromDate" /></label>
+                <label>To <input type="date" id="sleepToDate" /></label>
+                <button id="sleepDateApply" class="btn-apply">Apply</button>
+            </div>
+            <canvas id="sleepAwakeChart"></canvas>
         </div>
     </section>
 

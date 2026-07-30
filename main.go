@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -111,6 +112,7 @@ func main() {
 	router.POST("/api/growth", createGrowth)
 	router.GET("/api/settings/:key", getSetting)
 	router.PUT("/api/settings/:key", putSetting)
+	router.GET("/api/sleep-awake", getSleepAwake)
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -232,12 +234,15 @@ func getLogByDate(c *gin.Context) {
 }
 
 func getWeights(c *gin.Context) {
+	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
+	from := c.DefaultQuery("from", time.Now().AddDate(0, -1, 0).Format("2006-01-02"))
 	rows, err := db.Query(`
 		SELECT log_date, measurement_weight_g
 		FROM zili_daily_log
 		WHERE measurement_weight_g IS NOT NULL
+		  AND log_date BETWEEN $1 AND $2
 		ORDER BY log_date, id
-	`)
+	`, from, to)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -257,12 +262,15 @@ func getWeights(c *gin.Context) {
 }
 
 func getStatusWeights(c *gin.Context) {
+	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
+	from := c.DefaultQuery("from", time.Now().AddDate(0, -1, 0).Format("2006-01-02"))
 	rows, err := db.Query(`
 		SELECT log_date, status_weight_g
 		FROM zili_daily_log
 		WHERE status_weight_g IS NOT NULL
+		  AND log_date BETWEEN $1 AND $2
 		ORDER BY log_date, id
-	`)
+	`, from, to)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -553,6 +561,118 @@ func putVitamin(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"key": key, "checked": body.Checked})
+}
+
+type sleepLog struct {
+	Date    string
+	Time    string
+	Summary string
+}
+
+type daySleepResult struct {
+	Date     string `json:"Date"`
+	SleepMin int    `json:"SleepMin"`
+	AwakeMin int    `json:"AwakeMin"`
+}
+
+func calcSleepAwake(logs []sleepLog, from, to string, now time.Time) []daySleepResult {
+	sleepTags := []string{"elaludt", "cicin elaludt"}
+	toTime := func(date, t string) time.Time {
+		dt, _ := time.ParseInLocation("2006-01-02 15:04", date+" "+t, time.Local)
+		return dt
+	}
+	dayMap := map[string]*daySleepResult{}
+	start, _ := time.ParseInLocation("2006-01-02", from, time.Local)
+	end, _ := time.ParseInLocation("2006-01-02", to, time.Local)
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		key := d.Format("2006-01-02")
+		dayMap[key] = &daySleepResult{Date: key}
+	}
+	addInterval := func(sleepStart, wakeTime time.Time) {
+		cur := sleepStart
+		for cur.Before(wakeTime) {
+			dayEnd := time.Date(cur.Year(), cur.Month(), cur.Day()+1, 0, 0, 0, 0, time.Local)
+			intervalEnd := wakeTime
+			if dayEnd.Before(wakeTime) {
+				intervalEnd = dayEnd
+			}
+			if dr, ok := dayMap[cur.Format("2006-01-02")]; ok {
+				dr.SleepMin += int(intervalEnd.Sub(cur).Minutes())
+			}
+			cur = dayEnd
+		}
+	}
+	var sleepStart *time.Time
+	for _, l := range logs {
+		isSleep := false
+		for _, tag := range sleepTags {
+			if strings.Contains(l.Summary, tag) {
+				isSleep = true
+				break
+			}
+		}
+		isWake := strings.Contains(l.Summary, "ébredt")
+		if isSleep && sleepStart == nil {
+			t := toTime(l.Date, l.Time)
+			sleepStart = &t
+		} else if isWake && sleepStart != nil {
+			wt := toTime(l.Date, l.Time)
+			addInterval(*sleepStart, wt)
+			sleepStart = nil
+		}
+	}
+	if sleepStart != nil {
+		addInterval(*sleepStart, now)
+	}
+	var result []daySleepResult
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		key := d.Format("2006-01-02")
+		dr := dayMap[key]
+		dayEndTime := d.AddDate(0, 0, 1)
+		if now.Before(dayEndTime) {
+			dayEndTime = now
+		}
+		elapsed := int(dayEndTime.Sub(d).Minutes())
+		dr.AwakeMin = elapsed - dr.SleepMin
+		if dr.AwakeMin < 0 {
+			dr.AwakeMin = 0
+		}
+		result = append(result, *dr)
+	}
+	return result
+}
+
+func getSleepAwake(c *gin.Context) {
+	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
+	from := c.DefaultQuery("from", time.Now().AddDate(0, 0, -6).Format("2006-01-02"))
+
+	rows, err := db.Query(`
+		SELECT log_date::text, log_time::text, daily_summary
+		FROM zili_daily_log
+		WHERE log_time IS NOT NULL
+		  AND daily_summary IS NOT NULL
+		  AND (daily_summary ILIKE '%elaludt%' OR daily_summary ILIKE '%ébredt%')
+		  AND log_date BETWEEN $1::date - INTERVAL '1 day' AND $2::date
+		ORDER BY log_date, log_time
+	`, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var logs []sleepLog
+	for rows.Next() {
+		var r sleepLog
+		if err := rows.Scan(&r.Date, &r.Time, &r.Summary); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if len(r.Date) > 10 { r.Date = r.Date[:10] }
+		if len(r.Time) > 5 { r.Time = r.Time[:5] }
+		logs = append(logs, r)
+	}
+	c.JSON(http.StatusOK, calcSleepAwake(logs, from, to, time.Now()))
 }
 
 func getSetting(c *gin.Context) {

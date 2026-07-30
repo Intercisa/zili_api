@@ -1,14 +1,25 @@
 let weightChart = null;
 let statusWeightChart = null;
 let milkConsumedChart = null;
+let sleepAwakeChart = null;
 let allLogs = [];
 
 document.addEventListener("DOMContentLoaded", () => {
     const today = new Date().toISOString().split("T")[0];
     const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const monthAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     document.getElementById("milkFromDate").value = weekAgo;
     document.getElementById("milkToDate").value = today;
     document.getElementById("milkDateApply").addEventListener("click", loadMilkConsumedChart);
+    document.getElementById("weightFromDate").value = monthAgo;
+    document.getElementById("weightToDate").value = today;
+    document.getElementById("weightDateApply").addEventListener("click", loadWeightChart);
+    document.getElementById("statusWeightFromDate").value = monthAgo;
+    document.getElementById("statusWeightToDate").value = today;
+    document.getElementById("statusWeightDateApply").addEventListener("click", loadStatusWeightChart);
+    document.getElementById("sleepFromDate").value = weekAgo;
+    document.getElementById("sleepToDate").value = today;
+    document.getElementById("sleepDateApply").addEventListener("click", loadSleepAwakeChart);
 
     loadDashboard();
     loadVitamins();
@@ -23,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.classList.add("active");
             document.getElementById(target).classList.remove("hidden");
             if (target === "statusWeightTab" && !statusWeightChart) loadStatusWeightChart();
+            if (target === "sleepAwakeTab" && !sleepAwakeChart) loadSleepAwakeChart();
         });
     });
 
@@ -440,7 +452,9 @@ async function loadSummary() {
 }
 
 async function loadWeightChart() {
-    const data = await fetch("/api/weights").then(r => r.json());
+    const from = document.getElementById("weightFromDate").value;
+    const to = document.getElementById("weightToDate").value;
+    const data = await fetch(`/api/weights?from=${from}&to=${to}`).then(r => r.json());
     const ctx = document.getElementById("weightChart");
     if (weightChart) weightChart.destroy();
     weightChart = new Chart(ctx, {
@@ -461,7 +475,7 @@ async function loadWeightChart() {
         },
         options: {
             responsive: true,
-            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
+            plugins: { datalabels: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
             scales: {
                 y: { title: { display: true, text: "Weight in grams" } },
                 x: { title: { display: true, text: "Date" } }
@@ -471,7 +485,9 @@ async function loadWeightChart() {
 }
 
 async function loadStatusWeightChart() {
-    const data = await fetch("/api/status-weights").then(r => r.json());
+    const from = document.getElementById("statusWeightFromDate").value;
+    const to = document.getElementById("statusWeightToDate").value;
+    const data = await fetch(`/api/status-weights?from=${from}&to=${to}`).then(r => r.json());
     const ctx = document.getElementById("statusWeightChart");
     if (statusWeightChart) statusWeightChart.destroy();
     statusWeightChart = new Chart(ctx, {
@@ -501,6 +517,55 @@ async function loadStatusWeightChart() {
     });
 }
 
+async function loadSleepAwakeChart() {
+    const from = document.getElementById("sleepFromDate").value;
+    const to = document.getElementById("sleepToDate").value;
+    const data = await fetch(`/api/sleep-awake?from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+    const ctx = document.getElementById("sleepAwakeChart");
+    if (sleepAwakeChart) sleepAwakeChart.destroy();
+    sleepAwakeChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: data.map(i => i.Date),
+            datasets: [
+                {
+                    label: "Aludt (óra)",
+                    data: data.map(i => +(i.SleepMin / 60).toFixed(2)),
+                    backgroundColor: "#f9a8d4",
+                    borderColor: "#db2777",
+                    borderWidth: 1
+                },
+                {
+                    label: "Ébren (óra)",
+                    data: data.map(i => +(i.AwakeMin / 60).toFixed(2)),
+                    backgroundColor: "#c4b5fd",
+                    borderColor: "#7c3aed",
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const h = Math.floor(ctx.parsed.y);
+                            const m = Math.round((ctx.parsed.y - h) * 60);
+                            return `${ctx.dataset.label}: ${h > 0 ? h + "h " : ""}${m}m`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true, title: { display: true, text: "Date" } },
+                y: { stacked: true, title: { display: true, text: "Hours" } }
+            }
+        }
+    });
+}
+
 async function loadMilkConsumedChart() {
     const from = document.getElementById("milkFromDate").value;
     const to = document.getElementById("milkToDate").value;
@@ -521,7 +586,16 @@ async function loadMilkConsumedChart() {
         },
         options: {
             responsive: true,
-            plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
+            plugins: {
+                datalabels: {
+                    anchor: "center",
+                    align: "center",
+                    color: "#9d174d",
+                    font: { weight: "700", size: 14 },
+                    formatter: v => `${v} g`
+                },
+                tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } }
+            },
             scales: {
                 y: { beginAtZero: true, title: { display: true, text: "Milk consumed in grams" } },
                 x: { title: { display: true, text: "Date" } }
