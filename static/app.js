@@ -432,7 +432,6 @@ async function loadDashboard() {
 async function loadSummary() {
     const data = await fetch("/api/summary").then(r => r.json());
     document.getElementById("totalLogs").textContent = data.totalLogs;
-    document.getElementById("weightEntries").textContent = data.weightEntries;
     document.getElementById("firstWeight").textContent = formatGram(data.firstWeight);
     document.getElementById("latestWeight").textContent = formatGram(data.latestWeight);
     document.getElementById("weightGain").textContent = formatGram(data.weightGain);
@@ -535,6 +534,7 @@ async function loadLogs() {
     allLogs = await fetch("/api/logs").then(r => r.json());
     renderLogsTable("");
     updateAwakeStatus();
+    updateTodaySleepAwake();
 }
 
 function updateAwakeStatus() {
@@ -666,6 +666,58 @@ async function saveBirthDate() {
     document.getElementById("birthDateForm").classList.add("hidden");
     document.getElementById("ageStatus").classList.remove("hidden");
     updateAgeDisplay(value);
+}
+
+function updateTodaySleepAwake() {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const yesterday = new Date(now - 86400000).toISOString().split("T")[0];
+    const midnight = new Date(today + "T00:00:00");
+    const sleepTags = ["elaludt", "cicin elaludt"];
+
+    function logToDate(l) {
+        const t = l.logTime.includes("T") ? l.logTime.substring(11, 16) : l.logTime.substring(0, 5);
+        const [h, m] = t.split(":").map(Number);
+        const d = new Date(l.logDate.substring(0, 10));
+        d.setHours(h, m, 0, 0);
+        return d;
+    }
+
+    const relevantLogs = allLogs
+        .filter(l => l.logDate && l.logTime && l.dailySummary &&
+            (l.logDate.substring(0, 10) === today || l.logDate.substring(0, 10) === yesterday))
+        .sort((a, b) => logToDate(a) - logToDate(b));
+
+    let sleepMs = 0;
+    let sleepStart = null;
+
+    for (const l of relevantLogs) {
+        const isSleep = sleepTags.some(t => l.dailySummary.includes(t));
+        const isWake = l.dailySummary.includes("ébredt");
+        if (isSleep && !sleepStart) {
+            sleepStart = logToDate(l);
+        } else if (isWake && sleepStart) {
+            const start = sleepStart < midnight ? midnight : sleepStart;
+            const end = logToDate(l);
+            if (end > midnight) sleepMs += end - start;
+            sleepStart = null;
+        }
+    }
+    if (sleepStart) {
+        const start = sleepStart < midnight ? midnight : sleepStart;
+        sleepMs += now - start;
+    }
+
+    const awakeMs = Math.max(0, (now - midnight) - sleepMs);
+
+    const fmt = ms => {
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
+
+    document.getElementById("todaySleep").textContent = `aludt: ${fmt(sleepMs)}`;
+    document.getElementById("todayAwake").textContent = `ébren: ${fmt(awakeMs)}`;
 }
 
 function updateAgeDisplay(birthDateStr) {

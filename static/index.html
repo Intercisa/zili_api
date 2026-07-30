@@ -8,278 +8,281 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <header class="page-header">
-        <div>
-            <h1>Zili Dashboard</h1>
-            <p>Growth, feeding measurements, and daily log overview</p>
-        </div>
-        <div class="header-actions">
-            <button id="openFormButton">+ Add Entry</button>
-            <button id="openGrowthFormButton">📏 Add Growth</button>
-            <button id="refreshButton">Refresh</button>
-            <a href="https://sorted-governmental-tion-efficiency.trycloudflare.com/public-dashboards/3ca12fe79dce46beaedf426002d6f1ed?theme=light"
-               target="_blank"
-               class="btn-grafana">📊 Grafana</a>
-        </div>
-    </header>
-
-    <div class="vitamin-reminders">
-        <label class="reminder-item">
-            <input type="checkbox" id="dVitaminCheck" />
-            <span>D-vitamin (daily)</span>
-        </label>
-        <label class="reminder-item">
-            <input type="checkbox" id="kVitaminCheck" />
-            <span>K-vitamin (monthly · due 21st)</span>
-        </label>
+<header class="page-header">
+    <div>
+        <h1>Zili Dashboard</h1>
+        <p>Growth, feeding measurements, and daily log overview</p>
     </div>
-
-    <!-- Add Entry Modal -->
-    <div id="formOverlay" class="overlay hidden">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Add Daily Entry</h2>
-                <button id="closeFormButton" class="close-btn">&times;</button>
-            </div>
-            <form id="entryForm" class="entry-form">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="logDate">Date <span class="required">*</span></label>
-                        <input type="date" id="logDate" name="logDate" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="logTime">Time</label>
-                        <input type="time" id="logTime" name="logTime" step="60" />
-                    </div>
-                    <div class="form-group">
-                        <label for="measurementWeightG">Measurement weight (g)</label>
-                        <input type="number" id="measurementWeightG" name="measurementWeightG" placeholder="e.g. 4200" />
-                    </div>
-                    <div class="form-group">
-                        <label for="statusWeightG">Status weight (g)</label>
-                        <input type="number" id="statusWeightG" name="statusWeightG" placeholder="e.g. 4200" />
-                    </div>
-                    <div class="form-group">
-                        <label for="preFeedWeightG">Pre-feed weight (g)</label>
-                        <input type="number" id="preFeedWeightG" name="preFeedWeightG" placeholder="e.g. 4100" />
-                    </div>
-                    <div class="form-group">
-                        <label for="postFeedWeightG">Post-feed weight (g)</label>
-                        <input type="number" id="postFeedWeightG" name="postFeedWeightG" placeholder="e.g. 4200" />
-                    </div>
-                    <div class="form-group">
-                        <label for="milkTransferG">Milk transfer (g)</label>
-                        <input type="number" id="milkTransferG" name="milkTransferG" placeholder="e.g. 80" />
-                    </div>
-                    <div class="form-group">
-                        <label for="heightCm">Height (cm)</label>
-                        <input type="number" id="heightCm" name="heightCm" step="0.1" placeholder="e.g. 54.0" />
-                    </div>
-                    <div class="form-group">
-                        <label for="headCm">Head circumference (cm)</label>
-                        <input type="number" id="headCm" name="headCm" step="0.1" placeholder="e.g. 34.0" />
-                    </div>
-                </div>
-                <div class="form-group full-width">
-                    <label>Quick tags</label>
-                    <div class="quick-tags">
-                        <div class="quick-tag-group">
-                            <label><input type="checkbox" class="quick-tag" value="kakis pelus"> kakis pelus</label>
-                            <label><input type="checkbox" class="quick-tag" value="pisis pelus"> pisis pelus</label>
-                        </div>
-                        <div class="quick-tag-group">
-                            <label><input type="checkbox" class="quick-tag" value="ébredt"> ébredt</label>
-                            <label><input type="checkbox" class="quick-tag" value="elaludt"> elaludt</label>
-                            <label><input type="checkbox" class="quick-tag" value="cicin elaludt"> cicin elaludt</label>
-                            <label><input type="checkbox" class="quick-tag" value="altatás"> altatás</label>
-                        </div>
-                        <div class="quick-tag-group">
-                            <label><input type="checkbox" class="quick-tag" value="fürcsi"> fürcsi</label>
-                            <label><input type="checkbox" class="quick-tag" value="cici"> cici</label>
-                            <label><input type="checkbox" class="quick-tag" value="🎉"> 🎉 </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-group full-width">
-                    <label for="dailySummary">Daily summary</label>
-                    <textarea id="dailySummary" name="dailySummary" rows="4" placeholder="Describe feeds, naps, notable events..."></textarea>
-                </div>
-                <div id="formError" class="form-error hidden"></div>
-                <div id="formSuccess" class="form-success hidden"></div>
-                <div class="form-actions">
-                    <button type="button" id="cancelFormButton" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Entry</button>
-                </div>
-            </form>
-        </div>
+    <div class="header-actions">
+        <button id="openFormButton">+ Add Entry</button>
+        <button id="openGrowthFormButton">📏 Add Growth</button>
+        <button id="refreshButton">Refresh</button>
+        <a href="https://sorted-governmental-tion-efficiency.trycloudflare.com/public-dashboards/3ca12fe79dce46beaedf426002d6f1ed?theme=light"
+           target="_blank"
+           class="btn-grafana">📊 Grafana</a>
     </div>
+</header>
 
-    <!-- Edit Entry Modal -->
-    <div id="editOverlay" class="overlay hidden">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Edit Entry</h2>
-                <button id="closeEditButton" class="close-btn">&times;</button>
-            </div>
-            <form id="editForm" class="entry-form">
-                <input type="hidden" id="editId" />
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="editLogDate">Date <span class="required">*</span></label>
-                        <input type="date" id="editLogDate" name="editLogDate" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="editLogTime">Time</label>
-                        <input type="time" id="editLogTime" name="editLogTime" step="60" />
-                    </div>
-                    <div class="form-group">
-                        <label for="editHeightCm">Height (cm)</label>
-                        <input type="number" id="editHeightCm" name="editHeightCm" step="0.1" placeholder="e.g. 54.0" />
-                    </div>
-                    <div class="form-group">
-                        <label for="editHeadCm">Head circumference (cm)</label>
-                        <input type="number" id="editHeadCm" name="editHeadCm" step="0.1" placeholder="e.g. 34.0" />
-                    </div>
-                </div>
-                <div class="form-group full-width">
-                    <label for="editDailySummary">Daily summary</label>
-                    <textarea id="editDailySummary" name="editDailySummary" rows="4" placeholder="Describe feeds, naps, notable events..."></textarea>
-                </div>
-                <div id="editError" class="form-error hidden"></div>
-                <div id="editSuccess" class="form-success hidden"></div>
-                <div class="form-actions">
-                    <button type="button" id="cancelEditButton" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Changes</button>
-                </div>
-            </form>
+<div class="vitamin-reminders">
+    <label class="reminder-item">
+        <input type="checkbox" id="dVitaminCheck" />
+        <span>D-vitamin (daily)</span>
+    </label>
+    <label class="reminder-item">
+        <input type="checkbox" id="kVitaminCheck" />
+        <span>K-vitamin (monthly · due 21st)</span>
+    </label>
+</div>
+
+<!-- Add Entry Modal -->
+<div id="formOverlay" class="overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Add Daily Entry</h2>
+            <button id="closeFormButton" class="close-btn">&times;</button>
         </div>
-    </div>
-
-    <!-- Growth Entry Modal -->
-    <div id="growthOverlay" class="overlay hidden">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>📏 Add Growth Measurement</h2>
-                <button id="closeGrowthButton" class="close-btn">&times;</button>
+        <form id="entryForm" class="entry-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="logDate">Date <span class="required">*</span></label>
+                    <input type="date" id="logDate" name="logDate" required />
+                </div>
+                <div class="form-group">
+                    <label for="logTime">Time</label>
+                    <input type="time" id="logTime" name="logTime" step="60" />
+                </div>
+                <div class="form-group">
+                    <label for="measurementWeightG">Measurement weight (g)</label>
+                    <input type="number" id="measurementWeightG" name="measurementWeightG" placeholder="e.g. 4200" />
+                </div>
+                <div class="form-group">
+                    <label for="statusWeightG">Status weight (g)</label>
+                    <input type="number" id="statusWeightG" name="statusWeightG" placeholder="e.g. 4200" />
+                </div>
+                <div class="form-group">
+                    <label for="preFeedWeightG">Pre-feed weight (g)</label>
+                    <input type="number" id="preFeedWeightG" name="preFeedWeightG" placeholder="e.g. 4100" />
+                </div>
+                <div class="form-group">
+                    <label for="postFeedWeightG">Post-feed weight (g)</label>
+                    <input type="number" id="postFeedWeightG" name="postFeedWeightG" placeholder="e.g. 4200" />
+                </div>
+                <div class="form-group">
+                    <label for="milkTransferG">Milk transfer (g)</label>
+                    <input type="number" id="milkTransferG" name="milkTransferG" placeholder="e.g. 80" />
+                </div>
+                <div class="form-group">
+                    <label for="heightCm">Height (cm)</label>
+                    <input type="number" id="heightCm" name="heightCm" step="0.1" placeholder="e.g. 54.0" />
+                </div>
+                <div class="form-group">
+                    <label for="headCm">Head circumference (cm)</label>
+                    <input type="number" id="headCm" name="headCm" step="0.1" placeholder="e.g. 34.0" />
+                </div>
             </div>
-            <form id="growthForm" class="entry-form">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="growthDate">Date <span class="required">*</span></label>
-                        <input type="date" id="growthDate" name="growthDate" required />
+            <div class="form-group full-width">
+                <label>Quick tags</label>
+                <div class="quick-tags">
+                    <div class="quick-tag-group">
+                        <label><input type="checkbox" class="quick-tag" value="kakis pelus"> kakis pelus</label>
+                        <label><input type="checkbox" class="quick-tag" value="pisis pelus"> pisis pelus</label>
                     </div>
-                    <div class="form-group">
-                        <label for="growthWeight">Weight (g)</label>
-                        <input type="number" id="growthWeight" name="growthWeight" placeholder="e.g. 5200" />
+                    <div class="quick-tag-group">
+                        <label><input type="checkbox" class="quick-tag" value="ébredt"> ébredt</label>
+                        <label><input type="checkbox" class="quick-tag" value="elaludt"> elaludt</label>
+                        <label><input type="checkbox" class="quick-tag" value="cicin elaludt"> cicin elaludt</label>
+                        <label><input type="checkbox" class="quick-tag" value="altatás"> altatás</label>
                     </div>
-                    <div class="form-group">
-                        <label for="growthHeight">Height (cm)</label>
-                        <input type="number" id="growthHeight" name="growthHeight" step="0.1" placeholder="e.g. 57.0" />
-                    </div>
-                    <div class="form-group">
-                        <label for="growthHead">Head circumference (cm)</label>
-                        <input type="number" id="growthHead" name="growthHead" step="0.1" placeholder="e.g. 36.0" />
+                    <div class="quick-tag-group">
+                        <label><input type="checkbox" class="quick-tag" value="fürcsi"> fürcsi</label>
+                        <label><input type="checkbox" class="quick-tag" value="cici"> cici</label>
+                        <label><input type="checkbox" class="quick-tag" value="🎉"> 🎉 </label>
                     </div>
                 </div>
-                <div id="growthError" class="form-error hidden"></div>
-                <div id="growthSuccess" class="form-success hidden"></div>
-                <div class="form-actions">
-                    <button type="button" id="cancelGrowthButton" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Measurement</button>
-                </div>
-            </form>
+            </div>
+            <div class="form-group full-width">
+                <label for="dailySummary">Daily summary</label>
+                <textarea id="dailySummary" name="dailySummary" rows="4" placeholder="Describe feeds, naps, notable events..."></textarea>
+            </div>
+            <div id="formError" class="form-error hidden"></div>
+            <div id="formSuccess" class="form-success hidden"></div>
+            <div class="form-actions">
+                <button type="button" id="cancelFormButton" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save Entry</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Entry Modal -->
+<div id="editOverlay" class="overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Edit Entry</h2>
+            <button id="closeEditButton" class="close-btn">&times;</button>
         </div>
-    </div>
-
-    <main>
-        <section class="summary-grid">
-            <div class="summary-card"><span class="label">Total logs</span><span id="totalLogs" class="value">-</span></div>
-            <div class="summary-card"><span class="label">Weight entries</span><span id="weightEntries" class="value">-</span></div>
-            <div class="summary-card"><span class="label">First weight</span><span id="firstWeight" class="value">-</span></div>
-            <div class="summary-card"><span class="label">Latest weight</span><span id="latestWeight" class="value">-</span></div>
-            <div class="summary-card"><span class="label">Total gain</span><span id="weightGain" class="value">-</span></div>
-            <div class="summary-card"><span class="label">Milk records</span><span id="milkEntries" class="value">-</span></div>
-            <div class="summary-card"><span class="label">Zili's status</span><span id="awakeStatus" class="value">-</span></div>
-            <div class="summary-card" id="ageCard">
-                <span class="label">Zili's age</span>
-                <span id="ageStatus" class="value hidden">-</span>
-                <div id="birthDateForm" class="hidden">
-                    <input type="date" id="birthDateInput" />
-                    <button onclick="saveBirthDate()">Mentés</button>
+        <form id="editForm" class="entry-form">
+            <input type="hidden" id="editId" />
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="editLogDate">Date <span class="required">*</span></label>
+                    <input type="date" id="editLogDate" name="editLogDate" required />
+                </div>
+                <div class="form-group">
+                    <label for="editLogTime">Time</label>
+                    <input type="time" id="editLogTime" name="editLogTime" step="60" />
+                </div>
+                <div class="form-group">
+                    <label for="editHeightCm">Height (cm)</label>
+                    <input type="number" id="editHeightCm" name="editHeightCm" step="0.1" placeholder="e.g. 54.0" />
+                </div>
+                <div class="form-group">
+                    <label for="editHeadCm">Head circumference (cm)</label>
+                    <input type="number" id="editHeadCm" name="editHeadCm" step="0.1" placeholder="e.g. 34.0" />
                 </div>
             </div>
-        </section>
+            <div class="form-group full-width">
+                <label for="editDailySummary">Daily summary</label>
+                <textarea id="editDailySummary" name="editDailySummary" rows="4" placeholder="Describe feeds, naps, notable events..."></textarea>
+            </div>
+            <div id="editError" class="form-error hidden"></div>
+            <div id="editSuccess" class="form-success hidden"></div>
+            <div class="form-actions">
+                <button type="button" id="cancelEditButton" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-        <section class="chart-card">
-            <div class="section-title">
-                <h2>🌸 Zili's Growth</h2>
-                <p>Monthly measurements — weight, height, head circumference</p>
+<!-- Growth Entry Modal -->
+<div id="growthOverlay" class="overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>📏 Add Growth Measurement</h2>
+            <button id="closeGrowthButton" class="close-btn">&times;</button>
+        </div>
+        <form id="growthForm" class="entry-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="growthDate">Date <span class="required">*</span></label>
+                    <input type="date" id="growthDate" name="growthDate" required />
+                </div>
+                <div class="form-group">
+                    <label for="growthWeight">Weight (g)</label>
+                    <input type="number" id="growthWeight" name="growthWeight" placeholder="e.g. 5200" />
+                </div>
+                <div class="form-group">
+                    <label for="growthHeight">Height (cm)</label>
+                    <input type="number" id="growthHeight" name="growthHeight" step="0.1" placeholder="e.g. 57.0" />
+                </div>
+                <div class="form-group">
+                    <label for="growthHead">Head circumference (cm)</label>
+                    <input type="number" id="growthHead" name="growthHead" step="0.1" placeholder="e.g. 36.0" />
+                </div>
             </div>
-            <div id="growthLatest" class="growth-latest"></div>
-            <div id="growthTimeline" class="growth-timeline"></div>
-        </section>
+            <div id="growthError" class="form-error hidden"></div>
+            <div id="growthSuccess" class="form-success hidden"></div>
+            <div class="form-actions">
+                <button type="button" id="cancelGrowthButton" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save Measurement</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-        <section class="chart-card">
-            <div class="tab-header">
-                <button class="tab-btn active" data-tab="weightTab">Weight trend</button>
-                <button class="tab-btn" data-tab="statusWeightTab">Status weight</button>
+<main>
+    <section class="summary-grid">
+        <div class="summary-card"><span class="label">Total logs</span><span id="totalLogs" class="value">-</span></div>
+        <div class="summary-card"><span class="label">Ma ébren</span><span id="todayAwake" class="value">-</span></div>
+        <div class="summary-card"><span class="label">First weight</span><span id="firstWeight" class="value">-</span></div>
+        <div class="summary-card"><span class="label">Latest weight</span><span id="latestWeight" class="value">-</span></div>
+        <div class="summary-card"><span class="label">Total gain</span><span id="weightGain" class="value">-</span></div>
+        <div class="summary-card">
+            <span class="label">Ma aludt</span>
+            <span id="todaySleep" class="value">-</span>
+        </div>
+        <div class="summary-card"><span class="label">Zili's status</span><span id="awakeStatus" class="value">-</span></div>
+        <div class="summary-card" id="ageCard">
+            <span class="label">Zili's age</span>
+            <span id="ageStatus" class="value hidden">-</span>
+            <div id="birthDateForm" class="hidden">
+                <input type="date" id="birthDateInput" />
+                <button onclick="saveBirthDate()">Mentés</button>
             </div>
-            <div id="weightTab" class="tab-panel">
-                <div class="section-title"><p>Recorded measurement weight over time</p></div>
-                <canvas id="weightChart"></canvas>
-            </div>
-            <div id="statusWeightTab" class="tab-panel hidden">
-                <div class="section-title"><p>Recorded status weight over time</p></div>
-                <canvas id="statusWeightChart"></canvas>
-            </div>
-        </section>
+        </div>
+    </section>
 
-        <section class="chart-card">
-            <div class="section-title">
-                <h2>🍼 Daily milk consumed</h2>
-                <p>Total milk consumed per day (post-feed minus pre-feed weight)</p>
-            </div>
-            <div class="date-range-picker">
-                <label>From <input type="date" id="milkFromDate" /></label>
-                <label>To <input type="date" id="milkToDate" /></label>
-                <button id="milkDateApply" class="btn-apply">Apply</button>
-            </div>
-            <canvas id="milkConsumedChart"></canvas>
-        </section>
+    <section class="chart-card">
+        <div class="section-title">
+            <h2>🌸 Zili's Growth</h2>
+            <p>Monthly measurements — weight, height, head circumference</p>
+        </div>
+        <div id="growthLatest" class="growth-latest"></div>
+        <div id="growthTimeline" class="growth-timeline"></div>
+    </section>
 
-        <section class="chart-card">
-            <div class="section-title">
-                <h2>Grafana Dashboard</h2>
-                <p>Live stats and patterns</p>
-            </div>
-            <iframe
+    <section class="chart-card">
+        <div class="tab-header">
+            <button class="tab-btn active" data-tab="weightTab">Weight trend</button>
+            <button class="tab-btn" data-tab="statusWeightTab">Status weight</button>
+        </div>
+        <div id="weightTab" class="tab-panel">
+            <div class="section-title"><p>Recorded measurement weight over time</p></div>
+            <canvas id="weightChart"></canvas>
+        </div>
+        <div id="statusWeightTab" class="tab-panel hidden">
+            <div class="section-title"><p>Recorded status weight over time</p></div>
+            <canvas id="statusWeightChart"></canvas>
+        </div>
+    </section>
+
+    <section class="chart-card">
+        <div class="section-title">
+            <h2>🍼 Daily milk consumed</h2>
+            <p>Total milk consumed per day (post-feed minus pre-feed weight)</p>
+        </div>
+        <div class="date-range-picker">
+            <label>From <input type="date" id="milkFromDate" /></label>
+            <label>To <input type="date" id="milkToDate" /></label>
+            <button id="milkDateApply" class="btn-apply">Apply</button>
+        </div>
+        <canvas id="milkConsumedChart"></canvas>
+    </section>
+
+    <section class="chart-card">
+        <div class="section-title">
+            <h2>Grafana Dashboard</h2>
+            <p>Live stats and patterns</p>
+        </div>
+        <iframe
                 class="grafana-iframe"
                 src="https://sorted-governmental-tion-efficiency.trycloudflare.com/public-dashboards/3ca12fe79dce46beaedf426002d6f1ed?theme=light"
                 allowfullscreen>
-            </iframe>
-        </section>
+        </iframe>
+    </section>
 
-        <section class="chart-card">
-            <div class="section-title"><h2>Daily logs</h2><p>Search in daily notes</p></div>
-            <input id="searchInput" class="search-input" type="text" placeholder="Search daily summaries..." />
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th></th>
-                            <th>Date / Time</th>
-                            <th>Summary</th>
-                            <th>Weight</th>
-                            <th>Milk transfer</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logsTableBody"></tbody>
-                </table>
-            </div>
-        </section>
-    </main>
+    <section class="chart-card">
+        <div class="section-title"><h2>Daily logs</h2><p>Search in daily notes</p></div>
+        <input id="searchInput" class="search-input" type="text" placeholder="Search daily summaries..." />
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                <tr>
+                    <th></th>
+                    <th>Date / Time</th>
+                    <th>Summary</th>
+                    <th>Weight</th>
+                    <th>Milk transfer</th>
+                </tr>
+                </thead>
+                <tbody id="logsTableBody"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
 
-    <script src="/static/app.js"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>
 
