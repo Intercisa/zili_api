@@ -199,7 +199,15 @@
             <div class="summary-card"><span class="label">Latest weight</span><span id="latestWeight" class="value">-</span></div>
             <div class="summary-card"><span class="label">Total gain</span><span id="weightGain" class="value">-</span></div>
             <div class="summary-card"><span class="label">Milk records</span><span id="milkEntries" class="value">-</span></div>
-            <div class="summary-card"><span class="label">Average milk transfer</span><span id="averageMilk" class="value">-</span></div>
+            <div class="summary-card"><span class="label">Zili's status</span><span id="awakeStatus" class="value">-</span></div>
+            <div class="summary-card" id="ageCard">
+                <span class="label">Zili's age</span>
+                <span id="ageStatus" class="value hidden">-</span>
+                <div id="birthDateForm" class="hidden">
+                    <input type="date" id="birthDateInput" />
+                    <button onclick="saveBirthDate()">Mentés</button>
+                </div>
+            </div>
         </section>
 
         <section class="chart-card">
