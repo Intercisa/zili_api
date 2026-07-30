@@ -714,10 +714,6 @@ func getCurrentStatus(c *gin.Context) {
 		logs = append(logs, r)
 	}
 
-	toTime := func(date, t string) time.Time {
-		dt, _ := time.ParseInLocation("2006-01-02 15:04", date+" "+t, time.Local)
-		return dt
-	}
 	sleepTags := []string{"elaludt", "cicin elaludt"}
 
 	var lastSleep, lastWake *time.Time
@@ -726,9 +722,9 @@ func getCurrentStatus(c *gin.Context) {
 		for _, tag := range sleepTags {
 			if strings.Contains(l.Summary, tag) { isSleep = true; break }
 		}
-		t := toTime(l.Date, l.Time)
-		if isSleep { lastSleep = &t }
-		if strings.Contains(l.Summary, "ébredt") { lastWake = &t }
+		parsed, _ := time.ParseInLocation("2006-01-02 15:04", l.Date+" "+l.Time, time.Local)
+		if isSleep { lastSleep = &parsed }
+		if strings.Contains(l.Summary, "ébredt") { lastWake = &parsed }
 	}
 
 	fmtDur := func(ms int64) string {

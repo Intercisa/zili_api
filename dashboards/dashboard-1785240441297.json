@@ -5,8 +5,8 @@
     "name": "adk5xlq",
     "namespace": "default",
     "uid": "bf741f65-5476-4eb9-9c04-d4608275894a",
-    "resourceVersion": "1785245052408000",
-    "generation": 1,
+    "resourceVersion": "1785317795874993",
+    "generation": 4,
     "creationTimestamp": "2026-07-28T13:24:12Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "1431746787516416"
@@ -15,9 +15,11 @@
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/managedBy": "classic-file-provisioning",
       "grafana.app/managerId": "default",
-      "grafana.app/sourceChecksum": "280aef27949887d059a5037fc62a22d7",
+      "grafana.app/sourceChecksum": "517abad53767c398eb4b5aff04229b7e",
       "grafana.app/sourcePath": "/var/lib/grafana/dashboards/dashboard-1785240441297.json",
-      "grafana.app/sourceTimestamp": "1785241366000",
+      "grafana.app/sourceTimestamp": "1785317790000",
+      "grafana.app/updatedBy": "access-policy:service",
+      "grafana.app/updatedTimestamp": "2026-07-29T09:36:35Z",
       "grafana.app/folder": ""
     }
   },
@@ -648,7 +650,7 @@
           "links": [],
           "title": "AVG Pisis pelus",
           "vizConfig": {
-            "group": "gauge",
+            "group": "stat",
             "kind": "VizConfig",
             "spec": {
               "fieldConfig": {
@@ -673,17 +675,11 @@
                 "overrides": []
               },
               "options": {
-                "barShape": "flat",
-                "barWidthFactor": 0.3,
-                "effects": {
-                  "barGlow": false,
-                  "centerGlow": false,
-                  "gradient": true
-                },
-                "endpointMarker": "point",
-                "minVizHeight": 75,
-                "minVizWidth": 75,
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
                 "orientation": "auto",
+                "percentChangeColorMode": "standard",
                 "reduceOptions": {
                   "calcs": [
                     "lastNotNull"
@@ -691,14 +687,9 @@
                   "fields": "",
                   "values": false
                 },
-                "segmentCount": 1,
-                "segmentSpacing": 0.3,
-                "shape": "gauge",
-                "showThresholdLabels": false,
-                "showThresholdMarkers": false,
-                "sizing": "auto",
-                "sparkline": false,
-                "textMode": "auto"
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
               }
             },
             "version": "13.1.1"
@@ -761,7 +752,7 @@
           "links": [],
           "title": "AVG Kakis pelus",
           "vizConfig": {
-            "group": "gauge",
+            "group": "stat",
             "kind": "VizConfig",
             "spec": {
               "fieldConfig": {
@@ -786,17 +777,11 @@
                 "overrides": []
               },
               "options": {
-                "barShape": "flat",
-                "barWidthFactor": 0.3,
-                "effects": {
-                  "barGlow": false,
-                  "centerGlow": false,
-                  "gradient": true
-                },
-                "endpointMarker": "point",
-                "minVizHeight": 75,
-                "minVizWidth": 75,
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
                 "orientation": "auto",
+                "percentChangeColorMode": "standard",
                 "reduceOptions": {
                   "calcs": [
                     "lastNotNull"
@@ -804,14 +789,9 @@
                   "fields": "",
                   "values": false
                 },
-                "segmentCount": 1,
-                "segmentSpacing": 0.3,
-                "shape": "gauge",
-                "showThresholdLabels": false,
-                "showThresholdMarkers": false,
-                "sizing": "auto",
-                "sparkline": false,
-                "textMode": "auto"
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
               }
             },
             "version": "13.1.1"
