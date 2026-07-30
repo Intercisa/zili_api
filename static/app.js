@@ -579,7 +579,7 @@ function updateAwakeStatus() {
     if (diffMs < 0) { el.textContent = "-"; return; }
     const diffH = Math.floor(diffMs / 3600000);
     const diffM = Math.floor((diffMs % 3600000) / 60000);
-    el.textContent = diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m`;
+    el.textContent = `ébren ${diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m`}`;
 }
 
 function renderLogsTable(searchText) {
