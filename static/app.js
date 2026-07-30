@@ -401,7 +401,7 @@ function appendLogsToTable(items) {
         delBtn.onclick = () => deleteEntry(item);
         actionsCell.append(editBtn, delBtn);
         const dateCell = document.createElement("td");
-        dateCell.textContent = item.logDate ? item.logDate.substring(0, 10) + (item.logTime ? " " + item.logTime.substring(0, 5) : "") : "-";
+        dateCell.textContent = item.logDate ? item.logDate.substring(0, 10) + (item.logTime ? " " + (item.logTime.includes("T") ? item.logTime.substring(11, 16) : item.logTime.substring(0, 5)) : "") : "-";
         const summaryCell = document.createElement("td");
         summaryCell.textContent = item.dailySummary || "";
         const weightCell = document.createElement("td");
