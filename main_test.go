@@ -293,7 +293,8 @@ func TestGetSleepAwake_NoDB(t *testing.T) {
 // Pure logic tests for calcSleepAwake — no DB needed
 
 func mustLocal(s string) time.Time {
-	t, _ := time.ParseInLocation("2006-01-02 15:04", s, time.Local)
+    loc, _ := time.LoadLocation("Europe/Budapest")
+    t, _ := time.ParseInLocation("2006-01-02 15:04", s, loc)
 	return t
 }
 
