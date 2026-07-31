@@ -64,6 +64,15 @@ type Summary struct {
 
 var db *sql.DB
 
+func budapest() *time.Location {
+	loc, _ := time.LoadLocation("Europe/Budapest")
+	return loc
+}
+
+func nowBp() time.Time {
+	return time.Now().In(budapest())
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -244,8 +253,8 @@ func getLogByDate(c *gin.Context) {
 }
 
 func getWeights(c *gin.Context) {
-	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
-	from := c.DefaultQuery("from", time.Now().AddDate(0, -1, 0).Format("2006-01-02"))
+	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+	from := c.DefaultQuery("from", nowBp().AddDate(0, -1, 0).Format("2006-01-02"))
 	rows, err := db.Query(`
 		SELECT log_date, measurement_weight_g
 		FROM zili_daily_log
@@ -272,8 +281,8 @@ func getWeights(c *gin.Context) {
 }
 
 func getStatusWeights(c *gin.Context) {
-	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
-	from := c.DefaultQuery("from", time.Now().AddDate(0, -1, 0).Format("2006-01-02"))
+	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+	from := c.DefaultQuery("from", nowBp().AddDate(0, -1, 0).Format("2006-01-02"))
 	rows, err := db.Query(`
 		SELECT log_date, status_weight_g
 		FROM zili_daily_log
@@ -325,8 +334,8 @@ func getMilkTransfer(c *gin.Context) {
 }
 
 func getMilkConsumed(c *gin.Context) {
-	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
-	from := c.DefaultQuery("from", time.Now().AddDate(0, 0, -6).Format("2006-01-02"))
+	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+	from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
 
 	rows, err := db.Query(`
 		SELECT log_date, SUM(post_feed_weight_g - pre_feed_weight_g) as milk_consumed
@@ -587,13 +596,14 @@ type daySleepResult struct {
 
 func calcSleepAwake(logs []sleepLog, from, to string, now time.Time) []daySleepResult {
 	sleepTags := []string{"elaludt", "cicin elaludt"}
+	bp := budapest()
 	toTime := func(date, t string) time.Time {
-		dt, _ := time.ParseInLocation("2006-01-02 15:04", date+" "+t, time.Local)
+		dt, _ := time.ParseInLocation("2006-01-02 15:04", date+" "+t, bp)
 		return dt
 	}
 	dayMap := map[string]*daySleepResult{}
-	start, _ := time.ParseInLocation("2006-01-02", from, time.Local)
-	end, _ := time.ParseInLocation("2006-01-02", to, time.Local)
+	start, _ := time.ParseInLocation("2006-01-02", from, bp)
+	end, _ := time.ParseInLocation("2006-01-02", to, bp)
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
 		dayMap[key] = &daySleepResult{Date: key}
@@ -601,7 +611,7 @@ func calcSleepAwake(logs []sleepLog, from, to string, now time.Time) []daySleepR
 	addInterval := func(sleepStart, wakeTime time.Time) {
 		cur := sleepStart
 		for cur.Before(wakeTime) {
-			dayEnd := time.Date(cur.Year(), cur.Month(), cur.Day()+1, 0, 0, 0, 0, time.Local)
+			dayEnd := time.Date(cur.Year(), cur.Month(), cur.Day()+1, 0, 0, 0, 0, bp)
 			intervalEnd := wakeTime
 			if dayEnd.Before(wakeTime) {
 				intervalEnd = dayEnd
@@ -653,8 +663,8 @@ func calcSleepAwake(logs []sleepLog, from, to string, now time.Time) []daySleepR
 }
 
 func getSleepAwake(c *gin.Context) {
-	to := c.DefaultQuery("to", time.Now().Format("2006-01-02"))
-	from := c.DefaultQuery("from", time.Now().AddDate(0, 0, -6).Format("2006-01-02"))
+	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+	from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
 
 	rows, err := db.Query(`
 		SELECT log_date::text, log_time::text, daily_summary
@@ -682,13 +692,13 @@ func getSleepAwake(c *gin.Context) {
 		if len(r.Time) > 5 { r.Time = r.Time[:5] }
 		logs = append(logs, r)
 	}
-	c.JSON(http.StatusOK, calcSleepAwake(logs, from, to, time.Now()))
+	c.JSON(http.StatusOK, calcSleepAwake(logs, from, to, nowBp()))
 }
 
 func getCurrentStatus(c *gin.Context) {
-	now := time.Now()
-	today := now.UTC().Format("2006-01-02")
-	yesterday := now.UTC().AddDate(0, 0, -1).Format("2006-01-02")
+	now := nowBp()
+	today := now.Format("2006-01-02")
+	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
 
 	rows, err := db.Query(`
 		SELECT log_date::text, log_time::text, daily_summary,
@@ -766,7 +776,7 @@ func getCurrentStatus(c *gin.Context) {
 			sl = append(sl, sleepLog{Date: l.Date, Time: l.Time, Summary: l.Summary})
 		}
 		return sl
-	}(), yesterday, today, now)
+	}(), yesterday, today, nowBp())
 
 	var sleepMin, awakeMin int
 	for _, r := range result {
