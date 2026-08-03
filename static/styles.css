@@ -767,3 +767,45 @@ tbody tr:hover { background: #fdf2f6; }
     display: block;
 }
 
+.category-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.cat-btn {
+    padding: 0.4rem 1rem;
+    background: #fdf2f6;
+    color: #8a5570;
+    border: 1px solid #f3d5e3;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.cat-btn:hover { background: #fbe9f1; border-color: #f9a8d4; }
+
+.cat-btn.active {
+    background: #fbcfe8;
+    border-color: #db2777;
+    color: #9d174d;
+}
+
+.cat-panel.form-grid {
+    display: none;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.cat-panel.form-grid:not(.hidden) {
+    display: grid;
+}
+
+@media (max-width: 480px) {
+    .cat-panel.form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+

@@ -43,7 +43,7 @@
             <h2>Add Daily Entry</h2>
             <button id="closeFormButton" class="close-btn">&times;</button>
         </div>
-        <form id="entryForm" class="entry-form">
+        <form id="entryForm" class="entry-form" autocomplete="off">
             <div class="form-grid">
                 <div class="form-group">
                     <label for="logDate">Date <span class="required">*</span></label>
@@ -53,14 +53,29 @@
                     <label for="logTime">Time</label>
                     <input type="time" id="logTime" name="logTime" step="60" />
                 </div>
+            </div>
+
+            <div class="form-group full-width">
+                <label>Category</label>
+                <div class="category-tabs">
+                    <button type="button" class="cat-btn active" data-cat="milk">🍼 Milk</button>
+                    <button type="button" class="cat-btn" data-cat="measurements">⚖️ Measurements</button>
+                    <button type="button" class="cat-btn" data-cat="none">— none —</button>
+                </div>
+            </div>
+
+            <div id="catMeasurements" class="cat-panel hidden form-grid">
                 <div class="form-group">
-                    <label for="measurementWeightG">Measurement weight (g)</label>
+                    <label for="measurementWeightG">Pucér popós súly (g)</label>
                     <input type="number" id="measurementWeightG" name="measurementWeightG" placeholder="e.g. 4200" />
                 </div>
                 <div class="form-group">
-                    <label for="statusWeightG">Status weight (g)</label>
+                    <label for="statusWeightG">Státusz súly (g)</label>
                     <input type="number" id="statusWeightG" name="statusWeightG" placeholder="e.g. 4200" />
                 </div>
+            </div>
+
+            <div id="catMilk" class="cat-panel hidden form-grid">
                 <div class="form-group">
                     <label for="preFeedWeightG">Pre-feed weight (g)</label>
                     <input type="number" id="preFeedWeightG" name="preFeedWeightG" placeholder="e.g. 4100" />
@@ -69,19 +84,17 @@
                     <label for="postFeedWeightG">Post-feed weight (g)</label>
                     <input type="number" id="postFeedWeightG" name="postFeedWeightG" placeholder="e.g. 4200" />
                 </div>
-                <div class="form-group">
-                    <label for="milkTransferG">Milk transfer (g)</label>
-                    <input type="number" id="milkTransferG" name="milkTransferG" placeholder="e.g. 80" />
-                </div>
-                <div class="form-group">
-                    <label for="heightCm">Height (cm)</label>
-                    <input type="number" id="heightCm" name="heightCm" step="0.1" placeholder="e.g. 54.0" />
-                </div>
-                <div class="form-group">
-                    <label for="headCm">Head circumference (cm)</label>
-                    <input type="number" id="headCm" name="headCm" step="0.1" placeholder="e.g. 34.0" />
+                <div class="form-group full-width">
+                    <label>Feeding type</label>
+                    <div class="quick-tags">
+                        <div class="quick-tag-group">
+                            <label><input type="radio" name="feedingType" class="feeding-type" value="cici"> cici</label>
+                            <label><input type="radio" name="feedingType" class="feeding-type" value="cici, cumisüveg"> cici + cumisüveg</label>
+                        </div>
+                    </div>
                 </div>
             </div>
+
             <div class="form-group full-width">
                 <label>Quick tags</label>
                 <div class="quick-tags">
@@ -97,14 +110,13 @@
                     </div>
                     <div class="quick-tag-group">
                         <label><input type="checkbox" class="quick-tag" value="fürcsi"> fürcsi</label>
-                        <label><input type="checkbox" class="quick-tag" value="cici"> cici</label>
                         <label><input type="checkbox" class="quick-tag" value="🎉"> 🎉 </label>
                     </div>
                 </div>
             </div>
             <div class="form-group full-width">
                 <label for="dailySummary">Daily summary</label>
-                <textarea id="dailySummary" name="dailySummary" rows="4" placeholder="Describe feeds, naps, notable events..."></textarea>
+                <textarea id="dailySummary" name="dailySummary" rows="3" placeholder="Describe feeds, naps, notable events..."></textarea>
             </div>
             <div id="formError" class="form-error hidden"></div>
             <div id="formSuccess" class="form-success hidden"></div>
@@ -196,12 +208,12 @@
 <main>
     <section class="summary-grid">
         <div class="summary-card"><span class="label">Total logs</span><span id="totalLogs" class="value">-</span></div>
-        <div class="summary-card"><span class="label">Ma ébren</span><span id="todayAwake" class="value">-</span></div>
+        <div class="summary-card"><span class="label">Zili's status</span><span id="awakeStatus" class="value"></span></div>
         <div class="summary-card">
             <span class="label">Ma aludt</span>
             <span id="todaySleep" class="value">-</span>
         </div>
-        <div class="summary-card"><span class="label">Zili's status</span><span id="awakeStatus" class="value"></span></div>
+        <div class="summary-card"><span class="label">Ma ébren</span><span id="todayAwake" class="value">-</span></div>
         <div class="summary-card"><span class="label">First weight</span><span id="firstWeight" class="value">-</span></div>
         <div class="summary-card"><span class="label">Latest weight</span><span id="latestWeight" class="value">-</span></div>
         <div class="summary-card"><span class="label">Total gain</span><span id="weightGain" class="value">-</span></div>

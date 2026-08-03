@@ -83,7 +83,22 @@ document.addEventListener("DOMContentLoaded", () => {
         saveVitamin("k-vitamin", e.target.checked, date);
         if (e.target.checked) e.target.disabled = true;
     });
+    document.querySelectorAll(".cat-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
+            const cat = btn.dataset.cat;
+            if (cat === "measurements") document.getElementById("catMeasurements").classList.remove("hidden");
+            if (cat === "milk") document.getElementById("catMilk").classList.remove("hidden");
+        });
+    });
+    document.querySelectorAll(".feeding-type").forEach(r => r.addEventListener("change", syncQuickTags));
     document.querySelectorAll(".quick-tag").forEach(cb => cb.addEventListener("change", syncQuickTags));
+    document.getElementById("measurementWeightG").addEventListener("input", syncQuickTags);
+    document.getElementById("statusWeightG").addEventListener("input", syncQuickTags);
+    document.getElementById("preFeedWeightG").addEventListener("input", syncQuickTags);
+    document.getElementById("postFeedWeightG").addEventListener("input", syncQuickTags);
 
     const statusTile = document.getElementById("awakeStatus").closest(".summary-card");
     attachLongPress(statusTile, async () => {
@@ -102,8 +117,19 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function syncQuickTags() {
+    const parts = [];
+    const feedingType = document.querySelector(".feeding-type:checked");
+    if (feedingType) parts.push(feedingType.value);
+    const pre = document.getElementById("preFeedWeightG").value.trim();
+    const post = document.getElementById("postFeedWeightG").value.trim();
+    if (pre || post) parts.push(`pre: ${pre || "?"}g, post: ${post || "?"}g`);
     const checked = [...document.querySelectorAll(".quick-tag:checked")].map(cb => cb.value);
-    document.getElementById("dailySummary").value = checked.join(", ");
+    parts.push(...checked);
+    const measW = document.getElementById("measurementWeightG").value.trim();
+    const statW = document.getElementById("statusWeightG").value.trim();
+    if (measW) parts.push(`pucér popós súly: ${measW}g`);
+    if (statW) parts.push(`státusz súly: ${statW}g`);
+    document.getElementById("dailySummary").value = parts.join(", ");
 }
 
 async function loadVitamins() {
@@ -132,15 +158,24 @@ function openForm() {
     document.getElementById("formSuccess").classList.add("hidden");
     const now = new Date();
     document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+    document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
+    document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
+    document.getElementById("catMilk").classList.remove("hidden");
 }
 
 function closeForm() {
     document.getElementById("formOverlay").classList.add("hidden");
     document.body.style.overflow = "";
     document.getElementById("entryForm").reset();
+    document.getElementById("dailySummary").value = "";
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
     document.getElementById("logDate").value = new Date().toISOString().split("T")[0];
+    document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+    document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
+    document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
+    document.getElementById("catMilk").classList.remove("hidden");
 }
 
 function openGrowthForm() {
@@ -234,11 +269,13 @@ async function submitEntry(event) {
     submitBtn.disabled = true; submitBtn.textContent = "Saving...";
     const getValue = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : v; };
     const getInt   = id => { const v = getValue(id); return v === null ? null : parseInt(v, 10); };
-    const getFloat = id => { const v = getValue(id); return v === null ? null : parseFloat(v); };
+    const pre = getInt("preFeedWeightG");
+    const post = getInt("postFeedWeightG");
+    const milkTransfer = (pre !== null && post !== null && post > pre) ? post - pre : null;
     const payload = {
         logDate: getValue("logDate"), logTime: getValue("logTime"), dailySummary: getValue("dailySummary") || "",
-        statusWeightG: getInt("statusWeightG"), preFeedWeightG: getInt("preFeedWeightG"), postFeedWeightG: getInt("postFeedWeightG"),
-        milkTransferG: getInt("milkTransferG"), heightCm: getFloat("heightCm"), headCm: getFloat("headCm"), measurementWeightG: getInt("measurementWeightG"),
+        statusWeightG: getInt("statusWeightG"), preFeedWeightG: pre, postFeedWeightG: post,
+        milkTransferG: milkTransfer, heightCm: null, headCm: null, measurementWeightG: getInt("measurementWeightG"),
     };
     try {
         const response = await fetch("/api/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
