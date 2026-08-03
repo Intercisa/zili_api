@@ -6,6 +6,31 @@ let logsOffset = 0;
 let logsAllLoaded = false;
 let logsLoading = false;
 
+const PENDING_FEED_KEY = "zili_pending_feed";
+
+function savePendingFeed(data) {
+    localStorage.setItem(PENDING_FEED_KEY, JSON.stringify(data));
+    renderPendingBanner();
+}
+
+function loadPendingFeed() {
+    try { return JSON.parse(localStorage.getItem(PENDING_FEED_KEY)); } catch { return null; }
+}
+
+function clearPendingFeed() {
+    localStorage.removeItem(PENDING_FEED_KEY);
+    document.getElementById("pendingFeedBanner").classList.add("hidden");
+}
+
+function renderPendingBanner() {
+    const pending = loadPendingFeed();
+    const banner = document.getElementById("pendingFeedBanner");
+    if (!pending) { banner.classList.add("hidden"); return; }
+    const what = pending.preFeedWeightG !== null ? `pre: ${pending.preFeedWeightG}g — missing post` : `post: ${pending.postFeedWeightG}g — missing pre`;
+    document.getElementById("pendingFeedText").textContent = `🍼 Unsent feeding (${what})`;
+    banner.classList.remove("hidden");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const today = new Date().toISOString().split("T")[0];
     const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -27,6 +52,14 @@ document.addEventListener("DOMContentLoaded", () => {
     loadVitamins();
     loadGrowth();
     loadBirthDate();
+    renderPendingBanner();
+
+    document.getElementById("pendingFeedContinue").addEventListener("click", () => {
+        openForm(true);
+    });
+    document.getElementById("pendingFeedDiscard").addEventListener("click", () => {
+        clearPendingFeed();
+    });
 
     const tableWrapper = document.querySelector(".table-wrapper");
     tableWrapper.addEventListener("scroll", () => {
@@ -151,17 +184,30 @@ async function saveVitamin(key, checked, date) {
     await fetch(`/api/vitamins/${key}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checked, date }) });
 }
 
-function openForm() {
+function openForm(restorePending = false) {
     document.getElementById("formOverlay").classList.remove("hidden");
     document.body.style.overflow = "hidden";
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
-    const now = new Date();
-    document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
     document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
     document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
     document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
     document.getElementById("catMilk").classList.remove("hidden");
+    const pending = restorePending ? loadPendingFeed() : null;
+    if (pending) {
+        document.getElementById("logDate").value = pending.logDate || new Date().toISOString().split("T")[0];
+        document.getElementById("logTime").value = pending.logTime || "";
+        document.getElementById("preFeedWeightG").value = pending.preFeedWeightG || "";
+        document.getElementById("postFeedWeightG").value = pending.postFeedWeightG || "";
+        if (pending.feedingType) {
+            const radio = document.querySelector(`.feeding-type[value="${pending.feedingType}"]`);
+            if (radio) radio.checked = true;
+        }
+    } else {
+        const now = new Date();
+        document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    }
+    syncQuickTags();
 }
 
 function closeForm() {
@@ -265,12 +311,30 @@ async function submitEntry(event) {
     event.preventDefault();
     const errorEl = document.getElementById("formError"); const successEl = document.getElementById("formSuccess");
     errorEl.classList.add("hidden"); successEl.classList.add("hidden");
-    const submitBtn = event.target.querySelector("button[type=submit]");
-    submitBtn.disabled = true; submitBtn.textContent = "Saving...";
     const getValue = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : v; };
     const getInt   = id => { const v = getValue(id); return v === null ? null : parseInt(v, 10); };
     const pre = getInt("preFeedWeightG");
     const post = getInt("postFeedWeightG");
+    const isMilkCat = !document.getElementById("catMilk").classList.contains("hidden");
+    const feedingType = document.querySelector(".feeding-type:checked");
+
+    if (isMilkCat && (pre !== null || post !== null) && !(pre !== null && post !== null)) {
+        const pending = {
+            logDate: getValue("logDate"),
+            logTime: getValue("logTime"),
+            preFeedWeightG: pre,
+            postFeedWeightG: post,
+            feedingType: feedingType ? feedingType.value : null,
+        };
+        savePendingFeed(pending);
+        successEl.textContent = "Saved as pending — add the missing weight to complete.";
+        successEl.classList.remove("hidden");
+        setTimeout(() => closeForm(), 1500);
+        return;
+    }
+
+    const submitBtn = event.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true; submitBtn.textContent = "Saving...";
     const milkTransfer = (pre !== null && post !== null && post > pre) ? post - pre : null;
     const payload = {
         logDate: getValue("logDate"), logTime: getValue("logTime"), dailySummary: getValue("dailySummary") || "",
@@ -280,6 +344,7 @@ async function submitEntry(event) {
     try {
         const response = await fetch("/api/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || `Server error: ${response.status}`); }
+        clearPendingFeed();
         successEl.textContent = "Entry saved!"; successEl.classList.remove("hidden");
         setTimeout(() => { closeForm(); loadDashboard(); }, 1200);
     } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
