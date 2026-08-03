@@ -1,1080 +1,1312 @@
 {
-  "apiVersion": "dashboard.grafana.app/v2",
-  "kind": "Dashboard",
-  "metadata": {
-    "name": "adk5xlq",
-    "namespace": "default",
-    "uid": "bf741f65-5476-4eb9-9c04-d4608275894a",
-    "resourceVersion": "1785245052408000",
-    "generation": 1,
-    "creationTimestamp": "2026-07-28T13:24:12Z",
-    "labels": {
-      "grafana.app/deprecatedInternalID": "1431746787516416"
-    },
-    "annotations": {
-      "grafana.app/createdBy": "access-policy:service",
-      "grafana.app/managedBy": "classic-file-provisioning",
-      "grafana.app/managerId": "default",
-      "grafana.app/sourceChecksum": "280aef27949887d059a5037fc62a22d7",
-      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/dashboard-1785240441297.json",
-      "grafana.app/sourceTimestamp": "1785241366000",
-      "grafana.app/folder": ""
-    }
-  },
-  "spec": {
-    "annotations": [
-      {
-        "kind": "AnnotationQuery",
-        "spec": {
-          "builtIn": true,
-          "enable": true,
-          "hide": true,
-          "iconColor": "rgba(0, 211, 255, 1)",
-          "name": "Annotations & Alerts",
-          "query": {
-            "datasource": {
-              "name": "-- Grafana --"
-            },
-            "group": "grafana",
-            "kind": "DataQuery",
-            "spec": {},
-            "version": "v0"
-          }
-        }
-      }
-    ],
-    "cursorSync": "Off",
-    "editable": true,
-    "elements": {
-      "panel-1": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) AS \"cici count\"\nFROM public.zili_daily_log\nWHERE LOWER(daily_summary) LIKE '%cici%'\nGROUP BY log_date\nORDER BY log_date;\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "name": "AVG",
-                              "parameters": [
-                                {
-                                  "name": "daily_summary",
-                                  "type": "functionParameter"
-                                }
-                              ],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        },
-                        "table": "zili_daily_log"
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 1,
-          "links": [],
-          "title": "Panel 1 — Feedings per day (Bar chart / Time series)",
-          "vizConfig": {
-            "group": "timeseries",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "palette-classic"
-                  },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "bars",
-                    "fillOpacity": 100,
-                    "gradientMode": "hue",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineWidth": 1,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": false,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
-                "legend": {
-                  "calcs": [],
-                  "displayMode": "list",
-                  "enableFacetedFilter": false,
-                  "overflow": "ellipsis",
-                  "placement": "bottom",
-                  "showLegend": true
-                },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "single",
-                  "sort": "none"
-                }
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      },
-      "panel-2": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT AVG(daily_count) AS \"avg feedings/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM public.zili_daily_log\n  WHERE LOWER(daily_summary) LIKE '%cici%'\n  GROUP BY log_date\n) sub;\n\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "parameters": [],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        }
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 2,
-          "links": [],
-          "title": "Panel 3 — Average feedings per day (Stat panel)",
-          "vizConfig": {
-            "group": "stat",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "thresholds"
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "colorMode": "value",
-                "graphMode": "area",
-                "justifyMode": "auto",
-                "orientation": "auto",
-                "percentChangeColorMode": "standard",
-                "reduceOptions": {
-                  "calcs": [
-                    "lastNotNull"
-                  ],
-                  "fields": "",
-                  "values": false
-                },
-                "showPercentChange": false,
-                "textMode": "auto",
-                "wideLayout": true
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      },
-      "panel-3": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT\n  log_date AS \"time\",\n  MAX(log_time) AS \"last_elaludt\"\nFROM public.zili_daily_log\nWHERE daily_summary ILIKE '%elaludt%'\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "parameters": [],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        }
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 3,
-          "links": [],
-          "title": "Last elaludt per day (Time series)",
-          "vizConfig": {
-            "group": "table",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "thresholds"
-                  },
-                  "custom": {
-                    "align": "auto",
-                    "cellOptions": {
-                      "type": "auto"
-                    },
-                    "footer": {
-                      "reducers": []
-                    },
-                    "inspect": false
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "cellHeight": "sm",
-                "showHeader": true
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      },
-      "panel-4": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM last_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg last elaludt\"\nFROM (\n  SELECT MAX(log_time) AS last_t\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%elaludt%'\n    AND log_time IS NOT NULL\n    AND log_date < (SELECT MAX(log_date) FROM zili_daily_log)\n  GROUP BY log_date\n) sub;\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "parameters": [],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        }
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 4,
-          "links": [],
-          "title": "Avg last elaludt (Stat panel)",
-          "vizConfig": {
-            "group": "stat",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "thresholds"
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "colorMode": "none",
-                "graphMode": "area",
-                "justifyMode": "auto",
-                "orientation": "auto",
-                "percentChangeColorMode": "standard",
-                "reduceOptions": {
-                  "calcs": [],
-                  "fields": "/.*/",
-                  "values": true
-                },
-                "showPercentChange": false,
-                "textMode": "auto",
-                "wideLayout": true
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      },
-      "panel-6": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM first_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg first ébredt\"\nFROM (\n  SELECT MIN(log_time) AS first_t\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%ébredt%'\n    AND log_time IS NOT NULL\n  GROUP BY log_date\n) sub;\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "parameters": [],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        }
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 6,
-          "links": [],
-          "title": "Average wakeup",
-          "vizConfig": {
-            "group": "stat",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "thresholds"
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "colorMode": "none",
-                "graphMode": "area",
-                "justifyMode": "auto",
-                "orientation": "auto",
-                "percentChangeColorMode": "standard",
-                "reduceOptions": {
-                  "calcs": [],
-                  "fields": "/.*/",
-                  "values": true
-                },
-                "showPercentChange": false,
-                "textMode": "auto",
-                "wideLayout": true
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      },
-      "panel-7": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg pisis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%pisis pelus%'\n  GROUP BY log_date\n) sub;\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "parameters": [],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        }
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 7,
-          "links": [],
-          "title": "AVG Pisis pelus",
-          "vizConfig": {
-            "group": "gauge",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "thresholds"
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "barShape": "flat",
-                "barWidthFactor": 0.3,
-                "effects": {
-                  "barGlow": false,
-                  "centerGlow": false,
-                  "gradient": true
-                },
-                "endpointMarker": "point",
-                "minVizHeight": 75,
-                "minVizWidth": 75,
-                "orientation": "auto",
-                "reduceOptions": {
-                  "calcs": [
-                    "lastNotNull"
-                  ],
-                  "fields": "",
-                  "values": false
-                },
-                "segmentCount": 1,
-                "segmentSpacing": 0.3,
-                "shape": "gauge",
-                "showThresholdLabels": false,
-                "showThresholdMarkers": false,
-                "sizing": "auto",
-                "sparkline": false,
-                "textMode": "auto"
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      },
-      "panel-8": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg kakis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%kakis pelus%'\n  GROUP BY log_date\n) sub;\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "parameters": [],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        }
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 8,
-          "links": [],
-          "title": "AVG Kakis pelus",
-          "vizConfig": {
-            "group": "gauge",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "thresholds"
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "barShape": "flat",
-                "barWidthFactor": 0.3,
-                "effects": {
-                  "barGlow": false,
-                  "centerGlow": false,
-                  "gradient": true
-                },
-                "endpointMarker": "point",
-                "minVizHeight": 75,
-                "minVizWidth": 75,
-                "orientation": "auto",
-                "reduceOptions": {
-                  "calcs": [
-                    "lastNotNull"
-                  ],
-                  "fields": "",
-                  "values": false
-                },
-                "segmentCount": 1,
-                "segmentSpacing": 0.3,
-                "shape": "gauge",
-                "showThresholdLabels": false,
-                "showThresholdMarkers": false,
-                "sizing": "auto",
-                "sparkline": false,
-                "textMode": "auto"
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      },
-      "panel-9": {
-        "kind": "Panel",
-        "spec": {
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "P0591043B92216B37"
-                      },
-                      "group": "grafana-postgresql-datasource",
-                      "kind": "DataQuery",
-                      "spec": {
-                        "dataset": "zili",
-                        "editorMode": "code",
-                        "format": "table",
-                        "rawQuery": true,
-                        "rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) FILTER (WHERE daily_summary ILIKE '%kaki%') AS \"kakis pelus\",\n  COUNT(*) FILTER (WHERE daily_summary ILIKE '%pisi%') AS \"pisis pelus\"\nFROM zili_daily_log\nGROUP BY log_date\nORDER BY log_date;\n",
-                        "sql": {
-                          "columns": [
-                            {
-                              "parameters": [],
-                              "type": "function"
-                            }
-                          ],
-                          "groupBy": [
-                            {
-                              "property": {
-                                "type": "string"
-                              },
-                              "type": "groupBy"
-                            }
-                          ],
-                          "limit": 50
-                        }
-                      },
-                      "version": "v0"
-                    },
-                    "refId": "A"
-                  }
-                }
-              ],
-              "queryOptions": {},
-              "transformations": []
-            }
-          },
-          "description": "",
-          "id": 9,
-          "links": [],
-          "title": "Pisis & Kakis pelus count per day",
-          "vizConfig": {
-            "group": "timeseries",
-            "kind": "VizConfig",
-            "spec": {
-              "fieldConfig": {
-                "defaults": {
-                  "color": {
-                    "mode": "palette-classic"
-                  },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 0,
-                    "gradientMode": "none",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineWidth": 1,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": false,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  },
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "color": "green",
-                        "value": 0
-                      },
-                      {
-                        "color": "red",
-                        "value": 80
-                      }
-                    ]
-                  }
-                },
-                "overrides": []
-              },
-              "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
-                "legend": {
-                  "calcs": [],
-                  "displayMode": "list",
-                  "enableFacetedFilter": false,
-                  "overflow": "ellipsis",
-                  "placement": "bottom",
-                  "showLegend": true
-                },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "single",
-                  "sort": "none"
-                }
-              }
-            },
-            "version": "13.1.1"
-          }
-        }
-      }
-    },
-    "layout": {
-      "kind": "AutoGridLayout",
-      "spec": {
-        "columnWidthMode": "standard",
-        "items": [
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-1"
-              }
-            }
-          },
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-2"
-              }
-            }
-          },
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-3"
-              }
-            }
-          },
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-4"
-              }
-            }
-          },
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-6"
-              }
-            }
-          },
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-7"
-              }
-            }
-          },
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-8"
-              }
-            }
-          },
-          {
-            "kind": "AutoGridLayoutItem",
-            "spec": {
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-9"
-              }
-            }
-          }
-        ],
-        "maxColumnCount": 3,
-        "rowHeightMode": "standard"
-      }
-    },
-    "links": [],
-    "liveNow": false,
-    "preferences": {
-      "layout": {
-        "kind": "AutoGridLayout",
-        "spec": {
-          "columnWidthMode": "standard",
-          "items": [],
-          "maxColumnCount": 3,
-          "rowHeightMode": "standard"
-        }
-      }
-    },
-    "preload": false,
-    "tags": [],
-    "timeSettings": {
-      "autoRefresh": "",
-      "autoRefreshIntervals": [
-        "5s",
-        "10s",
-        "30s",
-        "1m",
-        "5m",
-        "15m",
-        "30m",
-        "1h",
-        "2h",
-        "1d"
-      ],
-      "fiscalYearStartMonth": 0,
-      "from": "now-7d",
-      "hideTimepicker": false,
-      "timezone": "Europe/Budapest",
-      "to": "now"
-    },
-    "title": "zili-dash",
-    "variables": []
-  }
+	"apiVersion": "dashboard.grafana.app/v2",
+	"kind": "Dashboard",
+	"metadata": {
+		"name": "adk5xlq",
+		"namespace": "default",
+		"uid": "bf741f65-5476-4eb9-9c04-d4608275894a",
+		"resourceVersion": "1785317795874993",
+		"generation": 4,
+		"creationTimestamp": "2026-07-28T13:24:12Z",
+		"labels": {
+			"grafana.app/deprecatedInternalID": "1431746787516416"
+		},
+		"annotations": {
+			"grafana.app/createdBy": "access-policy:service",
+			"grafana.app/managedBy": "classic-file-provisioning",
+			"grafana.app/managerId": "default",
+			"grafana.app/sourceChecksum": "517abad53767c398eb4b5aff04229b7e",
+			"grafana.app/sourcePath": "/var/lib/grafana/dashboards/dashboard-1785240441297.json",
+			"grafana.app/sourceTimestamp": "1785317790000",
+			"grafana.app/updatedBy": "access-policy:service",
+			"grafana.app/updatedTimestamp": "2026-07-29T09:36:35Z",
+			"grafana.app/folder": ""
+		}
+	},
+	"spec": {
+		"annotations": [
+			{
+				"kind": "AnnotationQuery",
+				"spec": {
+					"builtIn": true,
+					"enable": true,
+					"hide": true,
+					"iconColor": "rgba(0, 211, 255, 1)",
+					"name": "Annotations & Alerts",
+					"query": {
+						"datasource": {
+							"name": "-- Grafana --"
+						},
+						"group": "grafana",
+						"kind": "DataQuery",
+						"spec": {},
+						"version": "v0"
+					}
+				}
+			}
+		],
+		"cursorSync": "Off",
+		"editable": true,
+		"elements": {
+			"panel-1": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) AS \"cici count\"\nFROM public.zili_daily_log\nWHERE LOWER(daily_summary) LIKE '%cici%'\nGROUP BY log_date\nORDER BY log_date;\n",
+												"sql": {
+													"columns": [
+														{
+															"name": "AVG",
+															"parameters": [
+																{
+																	"name": "daily_summary",
+																	"type": "functionParameter"
+																}
+															],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												},
+												"table": "zili_daily_log"
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 1,
+					"links": [],
+					"title": "Panel 1 — Feedings per day (Bar chart / Time series)",
+					"vizConfig": {
+						"group": "timeseries",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "palette-classic"
+									},
+									"custom": {
+										"axisBorderShow": false,
+										"axisCenteredZero": false,
+										"axisColorMode": "text",
+										"axisLabel": "",
+										"axisPlacement": "auto",
+										"barAlignment": 0,
+										"barWidthFactor": 0.6,
+										"drawStyle": "bars",
+										"fillOpacity": 100,
+										"gradientMode": "hue",
+										"hideFrom": {
+											"legend": false,
+											"tooltip": false,
+											"viz": false
+										},
+										"insertNulls": false,
+										"lineInterpolation": "linear",
+										"lineWidth": 1,
+										"pointSize": 5,
+										"scaleDistribution": {
+											"type": "linear"
+										},
+										"showPoints": "auto",
+										"showValues": false,
+										"spanNulls": false,
+										"stacking": {
+											"group": "A",
+											"mode": "none"
+										},
+										"thresholdsStyle": {
+											"mode": "off"
+										}
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"annotations": {
+									"clustering": -1,
+									"multiLane": false
+								},
+								"legend": {
+									"calcs": [],
+									"displayMode": "list",
+									"enableFacetedFilter": false,
+									"overflow": "ellipsis",
+									"placement": "bottom",
+									"showLegend": true
+								},
+								"tooltip": {
+									"hideZeros": false,
+									"mode": "single",
+									"sort": "none"
+								}
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-2": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT AVG(daily_count) AS \"avg feedings/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM public.zili_daily_log\n  WHERE LOWER(daily_summary) LIKE '%cici%'\n  GROUP BY log_date\n) sub;\n\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 2,
+					"links": [],
+					"title": "Panel 3 — Average feedings per day (Stat panel)",
+					"vizConfig": {
+						"group": "stat",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "thresholds"
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"colorMode": "value",
+								"graphMode": "area",
+								"justifyMode": "auto",
+								"orientation": "auto",
+								"percentChangeColorMode": "standard",
+								"reduceOptions": {
+									"calcs": [
+										"lastNotNull"
+									],
+									"fields": "",
+									"values": false
+								},
+								"showPercentChange": false,
+								"textMode": "auto",
+								"wideLayout": true
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-3": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  MAX(log_time) AS \"last_elaludt\"\nFROM public.zili_daily_log\nWHERE daily_summary ILIKE '%elaludt%'\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 3,
+					"links": [],
+					"title": "Last elaludt per day (Time series)",
+					"vizConfig": {
+						"group": "table",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "thresholds"
+									},
+									"custom": {
+										"align": "auto",
+										"cellOptions": {
+											"type": "auto"
+										},
+										"footer": {
+											"reducers": []
+										},
+										"inspect": false
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"cellHeight": "sm",
+								"showHeader": true
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-4": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM last_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg last elaludt\"\nFROM (\n  SELECT MAX(log_time) AS last_t\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%elaludt%'\n    AND log_time IS NOT NULL\n    AND log_date < (SELECT MAX(log_date) FROM zili_daily_log)\n  GROUP BY log_date\n) sub;\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 4,
+					"links": [],
+					"title": "Avg last elaludt (Stat panel)",
+					"vizConfig": {
+						"group": "stat",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "thresholds"
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"colorMode": "none",
+								"graphMode": "area",
+								"justifyMode": "auto",
+								"orientation": "auto",
+								"percentChangeColorMode": "standard",
+								"reduceOptions": {
+									"calcs": [],
+									"fields": "/.*/",
+									"values": true
+								},
+								"showPercentChange": false,
+								"textMode": "auto",
+								"wideLayout": true
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-6": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM first_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg first ébredt\"\nFROM (\n  SELECT MIN(log_time) AS first_t\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%ébredt%'\n    AND log_time IS NOT NULL\n  GROUP BY log_date\n) sub;\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 6,
+					"links": [],
+					"title": "Average wakeup",
+					"vizConfig": {
+						"group": "stat",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "thresholds"
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"colorMode": "none",
+								"graphMode": "area",
+								"justifyMode": "auto",
+								"orientation": "auto",
+								"percentChangeColorMode": "standard",
+								"reduceOptions": {
+									"calcs": [],
+									"fields": "/.*/",
+									"values": true
+								},
+								"showPercentChange": false,
+								"textMode": "auto",
+								"wideLayout": true
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-7": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg pisis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%pisis pelus%'\n  GROUP BY log_date\n) sub;\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 7,
+					"links": [],
+					"title": "AVG Pisis pelus",
+					"vizConfig": {
+						"group": "stat",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "thresholds"
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"colorMode": "value",
+								"graphMode": "area",
+								"justifyMode": "auto",
+								"orientation": "auto",
+								"percentChangeColorMode": "standard",
+								"reduceOptions": {
+									"calcs": [
+										"lastNotNull"
+									],
+									"fields": "",
+									"values": false
+								},
+								"showPercentChange": false,
+								"textMode": "auto",
+								"wideLayout": true
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-8": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg kakis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%kakis pelus%'\n  GROUP BY log_date\n) sub;\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 8,
+					"links": [],
+					"title": "AVG Kakis pelus",
+					"vizConfig": {
+						"group": "stat",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "thresholds"
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"colorMode": "value",
+								"graphMode": "area",
+								"justifyMode": "auto",
+								"orientation": "auto",
+								"percentChangeColorMode": "standard",
+								"reduceOptions": {
+									"calcs": [
+										"lastNotNull"
+									],
+									"fields": "",
+									"values": false
+								},
+								"showPercentChange": false,
+								"textMode": "auto",
+								"wideLayout": true
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-9": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) FILTER (WHERE daily_summary ILIKE '%kaki%') AS \"kakis pelus\",\n  COUNT(*) FILTER (WHERE daily_summary ILIKE '%pisi%') AS \"pisis pelus\"\nFROM zili_daily_log\nGROUP BY log_date\nORDER BY log_date;\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 9,
+					"links": [],
+					"title": "Pisis & Kakis pelus count per day",
+					"vizConfig": {
+						"group": "timeseries",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "palette-classic"
+									},
+									"custom": {
+										"axisBorderShow": false,
+										"axisCenteredZero": false,
+										"axisColorMode": "text",
+										"axisLabel": "",
+										"axisPlacement": "auto",
+										"barAlignment": 0,
+										"barWidthFactor": 0.6,
+										"drawStyle": "line",
+										"fillOpacity": 0,
+										"gradientMode": "none",
+										"hideFrom": {
+											"legend": false,
+											"tooltip": false,
+											"viz": false
+										},
+										"insertNulls": false,
+										"lineInterpolation": "linear",
+										"lineWidth": 1,
+										"pointSize": 5,
+										"scaleDistribution": {
+											"type": "linear"
+										},
+										"showPoints": "auto",
+										"showValues": false,
+										"spanNulls": false,
+										"stacking": {
+											"group": "A",
+											"mode": "none"
+										},
+										"thresholdsStyle": {
+											"mode": "off"
+										}
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"annotations": {
+									"clustering": -1,
+									"multiLane": false
+								},
+								"legend": {
+									"calcs": [],
+									"displayMode": "list",
+									"enableFacetedFilter": false,
+									"overflow": "ellipsis",
+									"placement": "bottom",
+									"showLegend": true
+								},
+								"tooltip": {
+									"hideZeros": false,
+									"mode": "single",
+									"sort": "none"
+								}
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-11": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  EXTRACT(EPOCH FROM MIN(CASE WHEN daily_summary ILIKE '%ébredt%' THEN log_time END)) AS \"first ébredt (sec)\",\n  EXTRACT(EPOCH FROM MAX(CASE WHEN daily_summary ILIKE '%elaludt%' THEN log_time END)) AS \"last elaludt (sec)\"\nFROM zili_daily_log\nWHERE (daily_summary ILIKE '%ébredt%' OR daily_summary ILIKE '%elaludt%')\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 11,
+					"links": [],
+					"title": "Wake & sleep time per day",
+					"vizConfig": {
+						"group": "timeseries",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "palette-classic"
+									},
+									"unit": "s",
+									"custom": {
+										"axisBorderShow": false,
+										"axisCenteredZero": false,
+										"axisColorMode": "text",
+										"axisLabel": "time of day",
+										"axisPlacement": "auto",
+										"barAlignment": 0,
+										"barWidthFactor": 0.6,
+										"drawStyle": "points",
+										"fillOpacity": 0,
+										"gradientMode": "none",
+										"hideFrom": {
+											"legend": false,
+											"tooltip": false,
+											"viz": false
+										},
+										"insertNulls": false,
+										"lineInterpolation": "linear",
+										"lineWidth": 1,
+										"pointSize": 6,
+										"scaleDistribution": {
+											"type": "linear"
+										},
+										"showPoints": "always",
+										"showValues": false,
+										"spanNulls": false,
+										"stacking": {
+											"group": "A",
+											"mode": "none"
+										},
+										"thresholdsStyle": {
+											"mode": "off"
+										}
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"annotations": {
+									"clustering": -1,
+									"multiLane": false
+								},
+								"legend": {
+									"calcs": [],
+									"displayMode": "list",
+									"enableFacetedFilter": false,
+									"overflow": "ellipsis",
+									"placement": "bottom",
+									"showLegend": true
+								},
+								"tooltip": {
+									"hideZeros": false,
+									"mode": "multi",
+									"sort": "none"
+								}
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			},
+			"panel-10": {
+				"kind": "Panel",
+				"spec": {
+					"data": {
+						"kind": "QueryGroup",
+						"spec": {
+							"queries": [
+								{
+									"kind": "PanelQuery",
+									"spec": {
+										"hidden": false,
+										"query": {
+											"datasource": {
+												"name": "P0591043B92216B37"
+											},
+											"group": "grafana-postgresql-datasource",
+											"kind": "DataQuery",
+											"spec": {
+												"dataset": "zili",
+												"editorMode": "code",
+												"format": "table",
+												"rawQuery": true,
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  MIN(log_time) AS \"first_ébredt\"\nFROM public.zili_daily_log\nWHERE daily_summary ILIKE '%ébredt%'\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n",
+												"sql": {
+													"columns": [
+														{
+															"parameters": [],
+															"type": "function"
+														}
+													],
+													"groupBy": [
+														{
+															"property": {
+																"type": "string"
+															},
+															"type": "groupBy"
+														}
+													],
+													"limit": 50
+												}
+											},
+											"version": "v0"
+										},
+										"refId": "A"
+									}
+								}
+							],
+							"queryOptions": {},
+							"transformations": []
+						}
+					},
+					"description": "",
+					"id": 10,
+					"links": [],
+					"title": "First ébredt per day",
+					"vizConfig": {
+						"group": "table",
+						"kind": "VizConfig",
+						"spec": {
+							"fieldConfig": {
+								"defaults": {
+									"color": {
+										"mode": "thresholds"
+									},
+									"custom": {
+										"align": "auto",
+										"cellOptions": {
+											"type": "auto"
+										},
+										"footer": {
+											"reducers": []
+										},
+										"inspect": false
+									},
+									"thresholds": {
+										"mode": "absolute",
+										"steps": [
+											{
+												"color": "green",
+												"value": 0
+											},
+											{
+												"color": "red",
+												"value": 80
+											}
+										]
+									}
+								},
+								"overrides": []
+							},
+							"options": {
+								"cellHeight": "sm",
+								"showHeader": true
+							}
+						},
+						"version": "13.1.1"
+					}
+				}
+			}
+		},
+		"layout": {
+			"kind": "AutoGridLayout",
+			"spec": {
+				"columnWidthMode": "standard",
+				"items": [
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-1"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-2"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-3"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-4"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-6"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-7"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-8"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-9"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-10"
+							}
+						}
+					},
+					{
+						"kind": "AutoGridLayoutItem",
+						"spec": {
+							"element": {
+								"kind": "ElementReference",
+								"name": "panel-11"
+							}
+						}
+					}
+				],
+				"maxColumnCount": 3,
+				"rowHeightMode": "standard"
+			}
+		},
+		"links": [],
+		"liveNow": false,
+		"preferences": {
+			"layout": {
+				"kind": "AutoGridLayout",
+				"spec": {
+					"columnWidthMode": "standard",
+					"items": [],
+					"maxColumnCount": 3,
+					"rowHeightMode": "standard"
+				}
+			}
+		},
+		"preload": false,
+		"tags": [],
+		"timeSettings": {
+			"autoRefresh": "",
+			"autoRefreshIntervals": [
+				"5s",
+				"10s",
+				"30s",
+				"1m",
+				"5m",
+				"15m",
+				"30m",
+				"1h",
+				"2h",
+				"1d"
+			],
+			"fiscalYearStartMonth": 0,
+			"from": "now-7d",
+			"hideTimepicker": false,
+			"timezone": "Europe/Budapest",
+			"to": "now"
+		},
+		"title": "zili-dash",
+		"variables": []
+	}
 }
