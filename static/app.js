@@ -84,6 +84,21 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target.checked) e.target.disabled = true;
     });
     document.querySelectorAll(".quick-tag").forEach(cb => cb.addEventListener("change", syncQuickTags));
+
+    const statusTile = document.getElementById("awakeStatus").closest(".summary-card");
+    attachLongPress(statusTile, async () => {
+        const now = new Date();
+        const logDate = now.toISOString().split("T")[0];
+        const logTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+        const summary = statusTile.dataset.currentState === "sleep" ? "ébredt" : "elaludt";
+        await fetch("/api/logs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ logDate, logTime, dailySummary: summary })
+        });
+        await updateCurrentStatus();
+        loadLogs();
+    });
 });
 
 function syncQuickTags() {
@@ -317,9 +332,54 @@ async function updateCurrentStatus() {
     document.getElementById("awakeStatus").innerHTML = `<span style="font-size:0.85rem;font-weight:600;display:block">${label}</span>${data.duration}`;
     tile.style.background = data.state === "sleep" ? "#dbeafe" : "#fce7f3";
     tile.style.borderColor = data.state === "sleep" ? "#93c5fd" : "#f9a8d4";
+    tile.dataset.currentState = data.state;
     const fmt = min => { const h = Math.floor(min / 60); const m = min % 60; return h > 0 ? `${h}h ${m}m` : `${m}m`; };
     document.getElementById("todaySleep").textContent = ` ${fmt(data.sleepMin)}`;
     document.getElementById("todayAwake").textContent = ` ${fmt(data.awakeMin)}`;
+}
+
+function attachLongPress(el, onTrigger, duration = 800) {
+    let bar = el.querySelector(".long-press-bar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.className = "long-press-bar";
+        el.appendChild(bar);
+    }
+    el.classList.add("long-press-target");
+    let timer = null;
+
+    function start(e) {
+        e.preventDefault();
+        bar.classList.add("active");
+        bar.style.transition = "none";
+        bar.style.width = "0%";
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                bar.style.transition = `width ${duration}ms linear`;
+                bar.style.width = "100%";
+            });
+        });
+        timer = setTimeout(() => { cancel(false); onTrigger(); }, duration);
+    }
+
+    function cancel(retract = true) {
+        clearTimeout(timer);
+        if (retract) {
+            bar.style.transition = "width 0.15s ease";
+            bar.style.width = "0%";
+            setTimeout(() => bar.classList.remove("active"), 150);
+        } else {
+            bar.classList.remove("active");
+            bar.style.width = "0%";
+        }
+    }
+
+    el.addEventListener("mousedown", start);
+    el.addEventListener("touchstart", start, { passive: false });
+    el.addEventListener("mouseup", () => cancel());
+    el.addEventListener("mouseleave", () => cancel());
+    el.addEventListener("touchend", () => cancel());
+    el.addEventListener("touchcancel", () => cancel());
 }
 
 async function loadWeightChart() {
