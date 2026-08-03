@@ -18,10 +18,8 @@
     <div class="header-actions">
         <button id="openFormButton">+ Add Entry</button>
         <button id="openGrowthFormButton">📏 Add Growth</button>
+        <button id="openEventFormButton">📅 Add Event</button>
         <button id="refreshButton">Refresh</button>
-        <a href="https://sorted-governmental-tion-efficiency.trycloudflare.com/public-dashboards/3ca12fe79dce46beaedf426002d6f1ed?theme=light"
-           target="_blank"
-           class="btn-grafana">📊 Grafana</a>
     </div>
 </header>
 
@@ -177,6 +175,75 @@
     </div>
 </div>
 
+<!-- Event Modal -->
+<div id="eventOverlay" class="overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>📅 Add Event</h2>
+            <button id="closeEventButton" class="close-btn">&times;</button>
+        </div>
+        <form id="eventForm" class="entry-form" autocomplete="off">
+            <input type="hidden" id="eventId" />
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="eventDate">Date <span class="required">*</span></label>
+                    <input type="date" id="eventDate" required />
+                </div>
+                <div class="form-group">
+                    <label for="eventTitle">Title <span class="required">*</span></label>
+                    <input type="text" id="eventTitle" placeholder="e.g. Hétfői ellenőrzés" required />
+                </div>
+                <div class="form-group">
+                    <label for="eventTime">Time</label>
+                    <input type="time" id="eventTime" step="60" />
+                </div>
+                <div class="form-group">
+                    <label for="eventDuration">Duration (min)</label>
+                    <input type="number" id="eventDuration" value="60" min="1" />
+                </div>
+                <div class="form-group">
+                    <label for="eventRecurring">Ismétlődés</label>
+                    <select id="eventRecurring">
+                        <option value="none">Nem ismétlődik</option>
+                        <option value="weekly">Heti</option>
+                        <option value="monthly">Havi</option>
+                        <option value="yearly">Éves</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content:flex-end">
+                    <label class="reminder-item" style="margin-top:auto">
+                        <input type="checkbox" id="eventAllDay" />
+                        <span>Egész napos</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label>Category</label>
+                <div class="event-category-picker">
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="orvos" required> <span>🩺 Orvos</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="oltas"> <span>💉 Oltás</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="gyogyszer"> <span>💊 Gyógyszer</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="meres"> <span>⚖️ Mérés</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="merfoldko"> <span>🎉 Mérföldkő</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="nevnap"> <span>🌸 Névnap</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="szuletesnap"> <span>🎂 Születésnap</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="egyeb"> <span>📅 Egyéb</span></label>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label for="eventNotes">Notes</label>
+                <textarea id="eventNotes" rows="2" placeholder="Optional notes..."></textarea>
+            </div>
+            <div id="eventError" class="form-error hidden"></div>
+            <div id="eventSuccess" class="form-success hidden"></div>
+            <div class="form-actions">
+                <button type="button" id="cancelEventButton" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save Event</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Growth Entry Modal -->
 <div id="growthOverlay" class="overlay hidden">
     <div class="modal">
@@ -236,12 +303,21 @@
     </section>
 
     <section class="chart-card">
-        <div class="section-title">
-            <h2>🌸 Zili's Growth</h2>
-            <p>Monthly measurements — weight, height, head circumference</p>
+        <div class="tab-header">
+            <button class="tab-btn" data-tab="growthTab">🌸 Growth</button>
+            <button class="tab-btn active" data-tab="eventsTab">📅 Események</button>
         </div>
-        <div id="growthLatest" class="growth-latest"></div>
-        <div id="growthTimeline" class="growth-timeline"></div>
+        <div id="growthTab" class="tab-panel hidden">
+            <div id="growthLatest" class="growth-latest"></div>
+            <div id="growthTimeline" class="growth-timeline"></div>
+        </div>
+        <div id="eventsTab" class="tab-panel">
+            <div id="eventsOngoing"></div>
+            <div id="eventsUpcoming"></div>
+            <div id="eventsPast"></div>
+            <div class="event-filter-bar" id="eventFilterBar"></div>
+            <div id="eventsAll"></div>
+        </div>
     </section>
 
     <section class="chart-card">

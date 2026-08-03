@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDashboard();
     loadVitamins();
     loadGrowth();
+    loadEvents();
     loadBirthDate();
     renderPendingBanner();
 
@@ -80,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.getElementById("refreshButton").addEventListener("click", () => { loadDashboard(); loadGrowth(); });
+    document.getElementById("refreshButton").addEventListener("click", () => { loadDashboard(); loadGrowth(); loadEvents(); });
     document.getElementById("searchInput").addEventListener("input", async event => {
         const q = event.target.value.trim();
         if (!q) { loadLogs(); return; }
@@ -103,6 +104,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("cancelGrowthButton").addEventListener("click", closeGrowthForm);
     document.getElementById("growthOverlay").addEventListener("click", e => { if (e.target === document.getElementById("growthOverlay")) closeGrowthForm(); });
     document.getElementById("growthForm").addEventListener("submit", submitGrowth);
+    document.getElementById("openEventFormButton").addEventListener("click", () => openEventForm());
+    document.getElementById("closeEventButton").addEventListener("click", closeEventForm);
+    document.getElementById("cancelEventButton").addEventListener("click", closeEventForm);
+    document.getElementById("eventOverlay").addEventListener("click", e => { if (e.target === document.getElementById("eventOverlay")) closeEventForm(); });
+    document.getElementById("eventForm").addEventListener("submit", submitEvent);
     document.getElementById("logDate").value = today;
     document.getElementById("growthDate").value = today;
     document.getElementById("dVitaminCheck").addEventListener("change", e => {
@@ -627,5 +633,224 @@ function updateAgeDisplay(birthDateStr) {
         text = `${y} éves (${totalWeeks} hetes)`;
     }
     document.getElementById("ageStatus").textContent = text;
+}
+
+const EVENT_CATEGORIES = {
+    orvos:       { icon: "🩺", label: "Orvos",        color: "#dbeafe", border: "#93c5fd" },
+    oltas:       { icon: "💉", label: "Oltás",         color: "#fce7f3", border: "#f9a8d4" },
+    gyogyszer:   { icon: "💊", label: "Gyógyszer",     color: "#fef3c7", border: "#fcd34d" },
+    meres:       { icon: "⚖️", label: "Mérés",         color: "#f0fdf4", border: "#86efac" },
+    merfoldko:   { icon: "🎉", label: "Mérföldkő",    color: "#fdf4ff", border: "#e879f9" },
+    nevnap:      { icon: "🌸", label: "Névnap",        color: "#fff1f2", border: "#fda4af" },
+    szuletesnap: { icon: "🎂", label: "Születésnap",   color: "#fff7ed", border: "#fdba74" },
+    egyeb:       { icon: "📅", label: "Egyéb",         color: "#f8fafc", border: "#cbd5e1" },
+};
+
+let allEvents = [];
+let activeEventFilter = null;
+
+function openEventForm(event = null) {
+    document.getElementById("eventOverlay").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    document.getElementById("eventError").classList.add("hidden");
+    document.getElementById("eventSuccess").classList.add("hidden");
+    document.getElementById("eventForm").reset();
+    const now = new Date();
+    if (event) {
+        document.getElementById("eventId").value = event.id;
+        document.getElementById("eventDate").value = event.eventDate;
+        document.getElementById("eventTime").value = event.eventTime || "";
+        document.getElementById("eventDuration").value = event.durationMin;
+        document.getElementById("eventTitle").value = event.title;
+        document.getElementById("eventNotes").value = event.notes || "";
+        document.getElementById("eventRecurring").value = event.recurring || "none";
+        document.getElementById("eventAllDay").checked = event.allDay || false;
+        const radio = document.querySelector(`input[name="eventCategory"][value="${event.category}"]`);
+        if (radio) radio.checked = true;
+        document.querySelector(".modal-header h2").textContent = "📅 Edit Event";
+    } else {
+        document.getElementById("eventId").value = "";
+        document.getElementById("eventDate").value = now.toISOString().split("T")[0];
+        document.getElementById("eventTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+        document.getElementById("eventDuration").value = 60;
+        document.getElementById("eventRecurring").value = "none";
+        document.getElementById("eventAllDay").checked = false;
+        document.querySelector(".modal-header h2").textContent = "📅 Add Event";
+    }
+    document.querySelectorAll("input[name='eventCategory']").forEach(r => {
+        r.addEventListener("change", () => {
+            const autoRecurring = ["nevnap", "szuletesnap"].includes(r.value);
+            document.getElementById("eventRecurring").value = autoRecurring ? "yearly" : "none";
+        });
+    });
+    document.getElementById("eventAllDay").addEventListener("change", e => {
+        document.getElementById("eventTime").disabled = e.target.checked;
+        document.getElementById("eventDuration").disabled = e.target.checked;
+        if (e.target.checked) {
+            document.getElementById("eventTime").value = "";
+        }
+    });
+}
+
+function closeEventForm() {
+    document.getElementById("eventOverlay").classList.add("hidden");
+    document.body.style.overflow = "";
+}
+
+async function submitEvent(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById("eventError");
+    const successEl = document.getElementById("eventSuccess");
+    errorEl.classList.add("hidden"); successEl.classList.add("hidden");
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true; submitBtn.textContent = "Saving...";
+    const id = document.getElementById("eventId").value;
+    const payload = {
+        title: document.getElementById("eventTitle").value.trim(),
+        category: document.querySelector("input[name='eventCategory']:checked")?.value || "egyeb",
+        eventDate: document.getElementById("eventDate").value,
+        eventTime: document.getElementById("eventTime").value || null,
+        durationMin: parseInt(document.getElementById("eventDuration").value) || 60,
+        notes: document.getElementById("eventNotes").value.trim() || null,
+        recurring: document.getElementById("eventRecurring").value,
+        allDay: document.getElementById("eventAllDay").checked,
+    };
+    try {
+        const url = id ? `/api/events/${id}` : "/api/events";
+        const method = id ? "PUT" : "POST";
+        const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `Server error: ${res.status}`); }
+        successEl.textContent = "Saved!"; successEl.classList.remove("hidden");
+        setTimeout(() => { closeEventForm(); loadEvents(); }, 1000);
+    } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
+    finally { submitBtn.disabled = false; submitBtn.textContent = "Save Event"; }
+}
+
+async function loadEvents() {
+    allEvents = await fetch("/api/events").then(r => r.json()).catch(() => []);
+    renderEvents();
+}
+
+function renderEvents() {
+    const now = new Date();
+    const thisYear = now.getFullYear();
+
+    // expand recurring events
+    const expanded = [];
+    const baseEvents = activeEventFilter ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
+    const oneYearOut = new Date(now); oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
+    baseEvents.forEach(e => {
+        if (!e.recurring || e.recurring === "none") { expanded.push(e); return; }
+        const origin = new Date(e.eventDate);
+        let cur = new Date(origin);
+        // go back to find first occurrence before now if needed
+        while (cur > now) {
+            if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
+            else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() - 1);
+            else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() - 1);
+        }
+        while (cur <= oneYearOut) {
+            const dateStr = cur.toISOString().split("T")[0];
+            expanded.push({ ...e, eventDate: dateStr });
+            if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
+            else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() + 1);
+            else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() + 1);
+        }
+    });
+    // for recurring events keep only the most relevant occurrence per id
+    const byId = new Map();
+    expanded.forEach(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        const existing = byId.get(e.id);
+        if (!existing) { byId.set(e.id, e); return; }
+        const existingStart = new Date(`${existing.eventDate}T${existing.eventTime || "00:00"}`);
+        // prefer upcoming over past; among same side prefer closest to now
+        const eIsFuture = start >= now;
+        const exIsFuture = existingStart >= now;
+        if (eIsFuture && !exIsFuture) { byId.set(e.id, e); return; }
+        if (!eIsFuture && exIsFuture) return;
+        if (eIsFuture && exIsFuture && start < existingStart) { byId.set(e.id, e); return; }
+        if (!eIsFuture && !exIsFuture && start > existingStart) { byId.set(e.id, e); }
+    });
+    const events = [...byId.values()].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+    const ongoing = events.filter(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        const end = new Date(start.getTime() + (e.allDay ? 86400000 : e.durationMin * 60000));
+        return start <= now && now <= end;
+    });
+    const upcoming = events.filter(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        return start > now;
+    });
+    const ongoingIds = new Set(ongoing.map(e => e.id));
+    const upcomingIds = new Set(upcoming.map(e => e.id));
+    const past = events.filter(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        const end = new Date(start.getTime() + (e.allDay ? 86400000 : e.durationMin * 60000));
+        return end < now && !ongoingIds.has(e.id) && !upcomingIds.has(e.id);
+    });
+
+    const ongoingEl = document.getElementById("eventsOngoing");
+    const upcomingEl = document.getElementById("eventsUpcoming");
+    const pastEl = document.getElementById("eventsPast");
+    const allEl = document.getElementById("eventsAll");
+
+    ongoingEl.innerHTML = ongoing.length ? `<div class="events-section-label">🔴 Folyamatban</div>` + ongoing.map(e => eventCard(e, "ongoing")).join("") : "";
+    upcomingEl.innerHTML = upcoming.length ? `<div class="events-section-label">⏳ Közelgő</div>` + upcoming.slice(0, 1).map(e => eventCard(e, "upcoming")).join("") : "";
+    pastEl.innerHTML = past.length ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).reverse().map(e => eventCard(e, "past")).join("") : "";
+
+    const prominentKeys = new Set([
+        ...ongoing.map(e => `${e.id}-${e.eventDate}`),
+        ...upcoming.slice(0, 1).map(e => `${e.id}-${e.eventDate}`),
+        ...past.slice(-2).map(e => `${e.id}-${e.eventDate}`),
+    ]);
+    const rest = events.filter(e => !prominentKeys.has(`${e.id}-${e.eventDate}`));
+
+    renderEventFilters();
+    allEl.innerHTML = rest.length
+        ? `<div class="events-section-label">📋 Többi</div>` + [...rest].reverse().map(e => eventCard(e, "all")).join("")
+        : "";
+}
+
+function eventCard(e, context) {
+    const cat = EVENT_CATEGORIES[e.category] || EVENT_CATEGORIES.egyeb;
+    const timeStr = e.allDay ? "Egész napos" : (e.eventTime ? e.eventTime.substring(0,5) : "");
+    const recurStr = e.recurring && e.recurring !== "none" ? ` · 🔄 ${e.recurring}` : "";
+    const prominent = context === "ongoing" || context === "upcoming";
+    return `<div class="event-card ${prominent ? "event-card--prominent" : ""}" style="background:${cat.color};border-color:${cat.border}">
+        <div class="event-card-icon">${cat.icon}</div>
+        <div class="event-card-body">
+            <div class="event-card-title">${e.title}</div>
+            <div class="event-card-meta">${e.eventDate}${timeStr ? " · " + timeStr : ""}${e.allDay ? "" : " · " + e.durationMin + " min"} · ${cat.label}${recurStr}</div>
+            ${e.notes ? `<div class="event-card-notes">${e.notes}</div>` : ""}
+        </div>
+        <div class="event-card-actions">
+            <button class="row-btn" onclick="openEventForm(${JSON.stringify(e).split('"').join('&quot;')})">✏️</button>
+            <button class="row-btn" onclick="deleteEvent(${e.id})">🗑️</button>
+        </div>
+    </div>`;
+}
+
+function renderEventFilters() {
+    const bar = document.getElementById("eventFilterBar");
+    const cats = [...new Set(allEvents.map(e => e.category))];
+    bar.innerHTML = `<button class="event-filter-btn ${!activeEventFilter ? "active" : ""}" onclick="setEventFilter(null)">Összes</button>` +
+        cats.map(c => {
+            const cat = EVENT_CATEGORIES[c] || EVENT_CATEGORIES.egyeb;
+            return `<button class="event-filter-btn ${activeEventFilter === c ? "active" : ""}" onclick="setEventFilter('${c}')">${cat.icon} ${cat.label}</button>`;
+        }).join("");
+}
+
+function setEventFilter(cat) {
+    activeEventFilter = cat;
+    renderEvents();
+}
+
+async function deleteEvent(id) {
+    if (!confirm("Delete this event?")) return;
+    await fetch(`/api/events/${id}`, { method: "DELETE" });
+    allEvents = allEvents.filter(e => e.id !== id);
+    renderEvents();
 }
 
