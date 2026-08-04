@@ -51,6 +51,18 @@ type GrowthPoint struct {
 	HeadCm   *float64 `json:"headCm"`
 }
 
+type Event struct {
+	ID          int     `json:"id"`
+	Title       string  `json:"title"`
+	Category    string  `json:"category"`
+	EventDate   string  `json:"eventDate"`
+	EventTime   *string `json:"eventTime"`
+	DurationMin int     `json:"durationMin"`
+	Notes       *string `json:"notes"`
+	Recurring   string  `json:"recurring"`
+	AllDay      bool    `json:"allDay"`
+}
+
 type Summary struct {
 	TotalLogs     int  `json:"totalLogs"`
 	WeightEntries int  `json:"weightEntries"`
@@ -125,6 +137,10 @@ func main() {
 	router.PUT("/api/settings/:key", putSetting)
 	router.GET("/api/sleep-awake", getSleepAwake)
 	router.GET("/api/current-status", getCurrentStatus)
+	router.GET("/api/events", getEvents)
+	router.POST("/api/events", createEvent)
+	router.PUT("/api/events/:id", updateEvent)
+	router.DELETE("/api/events/:id", deleteEvent)
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -828,5 +844,81 @@ func putSetting(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"key": key, "value": body.Value})
+}
+
+func getEvents(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT id, title, category, event_date::text, event_time::text, duration_min, notes, recurring, all_day
+		FROM zili_events
+		ORDER BY event_date ASC, COALESCE(event_time, '00:00') ASC
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	var events []Event
+	for rows.Next() {
+		var e Event
+		var eventTime, notes sql.NullString
+		if err := rows.Scan(&e.ID, &e.Title, &e.Category, &e.EventDate, &eventTime, &e.DurationMin, &notes, &e.Recurring, &e.AllDay); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if eventTime.Valid {
+			v := eventTime.String
+			if len(v) > 5 { v = v[:5] }
+			e.EventTime = &v
+		}
+		if notes.Valid { e.Notes = &notes.String }
+		if len(e.EventDate) > 10 { e.EventDate = e.EventDate[:10] }
+		events = append(events, e)
+	}
+	c.JSON(http.StatusOK, events)
+}
+
+func createEvent(c *gin.Context) {
+	var body Event
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO zili_events (title, category, event_date, event_time, duration_min, notes, recurring, all_day)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
+	`, body.Title, body.Category, body.EventDate, body.EventTime, body.DurationMin, body.Notes, body.Recurring, body.AllDay).Scan(&id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func updateEvent(c *gin.Context) {
+	id := c.Param("id")
+	var body Event
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	_, err := db.Exec(`
+		UPDATE zili_events SET title=$1, category=$2, event_date=$3, event_time=$4, duration_min=$5, notes=$6, recurring=$7, all_day=$8 WHERE id=$9
+	`, body.Title, body.Category, body.EventDate, body.EventTime, body.DurationMin, body.Notes, body.Recurring, body.AllDay, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": id})
+}
+
+func deleteEvent(c *gin.Context) {
+	id := c.Param("id")
+	_, err := db.Exec(`DELETE FROM zili_events WHERE id = $1`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
