@@ -6,6 +6,31 @@ let logsOffset = 0;
 let logsAllLoaded = false;
 let logsLoading = false;
 
+const PENDING_FEED_KEY = "zili_pending_feed";
+
+function savePendingFeed(data) {
+    localStorage.setItem(PENDING_FEED_KEY, JSON.stringify(data));
+    renderPendingBanner();
+}
+
+function loadPendingFeed() {
+    try { return JSON.parse(localStorage.getItem(PENDING_FEED_KEY)); } catch { return null; }
+}
+
+function clearPendingFeed() {
+    localStorage.removeItem(PENDING_FEED_KEY);
+    document.getElementById("pendingFeedBanner").classList.add("hidden");
+}
+
+function renderPendingBanner() {
+    const pending = loadPendingFeed();
+    const banner = document.getElementById("pendingFeedBanner");
+    if (!pending) { banner.classList.add("hidden"); return; }
+    const what = pending.preFeedWeightG !== null ? `pre: ${pending.preFeedWeightG}g — missing post` : `post: ${pending.postFeedWeightG}g — missing pre`;
+    document.getElementById("pendingFeedText").textContent = `🍼 Unsent feeding (${what})`;
+    banner.classList.remove("hidden");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const today = new Date().toISOString().split("T")[0];
     const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -26,7 +51,16 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDashboard();
     loadVitamins();
     loadGrowth();
+    loadEvents();
     loadBirthDate();
+    renderPendingBanner();
+
+    document.getElementById("pendingFeedContinue").addEventListener("click", () => {
+        openForm(true);
+    });
+    document.getElementById("pendingFeedDiscard").addEventListener("click", () => {
+        clearPendingFeed();
+    });
 
     const tableWrapper = document.querySelector(".table-wrapper");
     tableWrapper.addEventListener("scroll", () => {
@@ -47,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.getElementById("refreshButton").addEventListener("click", () => { loadDashboard(); loadGrowth(); });
+    document.getElementById("refreshButton").addEventListener("click", () => { loadDashboard(); loadGrowth(); loadEvents(); });
     document.getElementById("searchInput").addEventListener("input", async event => {
         const q = event.target.value.trim();
         if (!q) { loadLogs(); return; }
@@ -70,6 +104,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("cancelGrowthButton").addEventListener("click", closeGrowthForm);
     document.getElementById("growthOverlay").addEventListener("click", e => { if (e.target === document.getElementById("growthOverlay")) closeGrowthForm(); });
     document.getElementById("growthForm").addEventListener("submit", submitGrowth);
+    document.getElementById("openEventFormButton").addEventListener("click", () => openEventForm());
+    document.getElementById("closeEventButton").addEventListener("click", closeEventForm);
+    document.getElementById("cancelEventButton").addEventListener("click", closeEventForm);
+    document.getElementById("eventOverlay").addEventListener("click", e => { if (e.target === document.getElementById("eventOverlay")) closeEventForm(); });
+    document.getElementById("eventForm").addEventListener("submit", submitEvent);
     document.getElementById("logDate").value = today;
     document.getElementById("growthDate").value = today;
     document.getElementById("dVitaminCheck").addEventListener("change", e => {
@@ -83,12 +122,53 @@ document.addEventListener("DOMContentLoaded", () => {
         saveVitamin("k-vitamin", e.target.checked, date);
         if (e.target.checked) e.target.disabled = true;
     });
+    document.querySelectorAll(".cat-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
+            const cat = btn.dataset.cat;
+            if (cat === "measurements") document.getElementById("catMeasurements").classList.remove("hidden");
+            if (cat === "milk") document.getElementById("catMilk").classList.remove("hidden");
+        });
+    });
+    document.querySelectorAll(".feeding-type").forEach(r => r.addEventListener("change", syncQuickTags));
     document.querySelectorAll(".quick-tag").forEach(cb => cb.addEventListener("change", syncQuickTags));
+    document.getElementById("measurementWeightG").addEventListener("input", syncQuickTags);
+    document.getElementById("statusWeightG").addEventListener("input", syncQuickTags);
+    document.getElementById("preFeedWeightG").addEventListener("input", syncQuickTags);
+    document.getElementById("postFeedWeightG").addEventListener("input", syncQuickTags);
+
+    const statusTile = document.getElementById("awakeStatus").closest(".summary-card");
+    attachLongPress(statusTile, async () => {
+        const now = new Date();
+        const logDate = now.toISOString().split("T")[0];
+        const logTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+        const summary = statusTile.dataset.currentState === "sleep" ? "ébredt" : "elaludt";
+        await fetch("/api/logs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ logDate, logTime, dailySummary: summary })
+        });
+        await updateCurrentStatus();
+        loadLogs();
+    });
 });
 
 function syncQuickTags() {
+    const parts = [];
+    const feedingType = document.querySelector(".feeding-type:checked");
+    if (feedingType) parts.push(feedingType.value);
+    const pre = document.getElementById("preFeedWeightG").value.trim();
+    const post = document.getElementById("postFeedWeightG").value.trim();
+    if (pre || post) parts.push(`pre: ${pre || "?"}g, post: ${post || "?"}g`);
     const checked = [...document.querySelectorAll(".quick-tag:checked")].map(cb => cb.value);
-    document.getElementById("dailySummary").value = checked.join(", ");
+    parts.push(...checked);
+    const measW = document.getElementById("measurementWeightG").value.trim();
+    const statW = document.getElementById("statusWeightG").value.trim();
+    if (measW) parts.push(`pucér popós súly: ${measW}g`);
+    if (statW) parts.push(`státusz súly: ${statW}g`);
+    document.getElementById("dailySummary").value = parts.join(", ");
 }
 
 async function loadVitamins() {
@@ -110,34 +190,73 @@ async function saveVitamin(key, checked, date) {
     await fetch(`/api/vitamins/${key}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checked, date }) });
 }
 
-function openForm() {
+function lockScroll() {
+    const scrollY = window.scrollY;
+    document.body.dataset.scrollY = scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+}
+
+function unlockScroll() {
+    const scrollY = parseInt(document.body.dataset.scrollY || '0');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    delete document.body.dataset.scrollY;
+    window.scrollTo(0, scrollY);
+}
+
+function openForm(restorePending = false) {
     document.getElementById("formOverlay").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    lockScroll();
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
-    const now = new Date();
-    document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+    document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
+    document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
+    document.getElementById("catMilk").classList.remove("hidden");
+    const pending = restorePending ? loadPendingFeed() : null;
+    if (pending) {
+        document.getElementById("logDate").value = pending.logDate || new Date().toISOString().split("T")[0];
+        document.getElementById("logTime").value = pending.logTime || "";
+        document.getElementById("preFeedWeightG").value = pending.preFeedWeightG || "";
+        document.getElementById("postFeedWeightG").value = pending.postFeedWeightG || "";
+        if (pending.feedingType) {
+            const radio = document.querySelector(`.feeding-type[value="${pending.feedingType}"]`);
+            if (radio) radio.checked = true;
+        }
+    } else {
+        const now = new Date();
+        document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    }
+    syncQuickTags();
 }
 
 function closeForm() {
     document.getElementById("formOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
+    unlockScroll();
     document.getElementById("entryForm").reset();
+    document.getElementById("dailySummary").value = "";
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
     document.getElementById("logDate").value = new Date().toISOString().split("T")[0];
+    document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+    document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
+    document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
+    document.getElementById("catMilk").classList.remove("hidden");
 }
 
 function openGrowthForm() {
     document.getElementById("growthOverlay").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    lockScroll();
     document.getElementById("growthError").classList.add("hidden");
     document.getElementById("growthSuccess").classList.add("hidden");
 }
 
 function closeGrowthForm() {
     document.getElementById("growthOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
+    unlockScroll();
     document.getElementById("growthForm").reset();
     document.getElementById("growthError").classList.add("hidden");
     document.getElementById("growthSuccess").classList.add("hidden");
@@ -215,19 +334,40 @@ async function submitEntry(event) {
     event.preventDefault();
     const errorEl = document.getElementById("formError"); const successEl = document.getElementById("formSuccess");
     errorEl.classList.add("hidden"); successEl.classList.add("hidden");
-    const submitBtn = event.target.querySelector("button[type=submit]");
-    submitBtn.disabled = true; submitBtn.textContent = "Saving...";
     const getValue = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : v; };
     const getInt   = id => { const v = getValue(id); return v === null ? null : parseInt(v, 10); };
-    const getFloat = id => { const v = getValue(id); return v === null ? null : parseFloat(v); };
+    const pre = getInt("preFeedWeightG");
+    const post = getInt("postFeedWeightG");
+    const isMilkCat = !document.getElementById("catMilk").classList.contains("hidden");
+    const feedingType = document.querySelector(".feeding-type:checked");
+
+    if (isMilkCat && (pre !== null || post !== null) && !(pre !== null && post !== null)) {
+        const pending = {
+            logDate: getValue("logDate"),
+            logTime: getValue("logTime"),
+            preFeedWeightG: pre,
+            postFeedWeightG: post,
+            feedingType: feedingType ? feedingType.value : null,
+        };
+        savePendingFeed(pending);
+        successEl.textContent = "Saved as pending — add the missing weight to complete.";
+        successEl.classList.remove("hidden");
+        setTimeout(() => closeForm(), 1500);
+        return;
+    }
+
+    const submitBtn = event.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true; submitBtn.textContent = "Saving...";
+    const milkTransfer = (pre !== null && post !== null && post > pre) ? post - pre : null;
     const payload = {
         logDate: getValue("logDate"), logTime: getValue("logTime"), dailySummary: getValue("dailySummary") || "",
-        statusWeightG: getInt("statusWeightG"), preFeedWeightG: getInt("preFeedWeightG"), postFeedWeightG: getInt("postFeedWeightG"),
-        milkTransferG: getInt("milkTransferG"), heightCm: getFloat("heightCm"), headCm: getFloat("headCm"), measurementWeightG: getInt("measurementWeightG"),
+        statusWeightG: getInt("statusWeightG"), preFeedWeightG: pre, postFeedWeightG: post,
+        milkTransferG: milkTransfer, heightCm: null, headCm: null, measurementWeightG: getInt("measurementWeightG"),
     };
     try {
         const response = await fetch("/api/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || `Server error: ${response.status}`); }
+        clearPendingFeed();
         successEl.textContent = "Entry saved!"; successEl.classList.remove("hidden");
         setTimeout(() => { closeForm(); loadDashboard(); }, 1200);
     } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
@@ -236,7 +376,7 @@ async function submitEntry(event) {
 
 function openEditForm(item) {
     document.getElementById("editOverlay").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    lockScroll();
     document.getElementById("editError").classList.add("hidden");
     document.getElementById("editSuccess").classList.add("hidden");
     document.getElementById("editId").value = item.id;
@@ -251,7 +391,7 @@ function openEditForm(item) {
 
 function closeEditForm() {
     document.getElementById("editOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
+    unlockScroll();
     document.getElementById("editForm").reset();
     document.getElementById("editError").classList.add("hidden");
     document.getElementById("editSuccess").classList.add("hidden");
@@ -317,9 +457,54 @@ async function updateCurrentStatus() {
     document.getElementById("awakeStatus").innerHTML = `<span style="font-size:0.85rem;font-weight:600;display:block">${label}</span>${data.duration}`;
     tile.style.background = data.state === "sleep" ? "#dbeafe" : "#fce7f3";
     tile.style.borderColor = data.state === "sleep" ? "#93c5fd" : "#f9a8d4";
+    tile.dataset.currentState = data.state;
     const fmt = min => { const h = Math.floor(min / 60); const m = min % 60; return h > 0 ? `${h}h ${m}m` : `${m}m`; };
     document.getElementById("todaySleep").textContent = ` ${fmt(data.sleepMin)}`;
     document.getElementById("todayAwake").textContent = ` ${fmt(data.awakeMin)}`;
+}
+
+function attachLongPress(el, onTrigger, duration = 800) {
+    let bar = el.querySelector(".long-press-bar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.className = "long-press-bar";
+        el.appendChild(bar);
+    }
+    el.classList.add("long-press-target");
+    let timer = null;
+
+    function start(e) {
+        e.preventDefault();
+        bar.classList.add("active");
+        bar.style.transition = "none";
+        bar.style.width = "0%";
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                bar.style.transition = `width ${duration}ms linear`;
+                bar.style.width = "100%";
+            });
+        });
+        timer = setTimeout(() => { cancel(false); onTrigger(); }, duration);
+    }
+
+    function cancel(retract = true) {
+        clearTimeout(timer);
+        if (retract) {
+            bar.style.transition = "width 0.15s ease";
+            bar.style.width = "0%";
+            setTimeout(() => bar.classList.remove("active"), 150);
+        } else {
+            bar.classList.remove("active");
+            bar.style.width = "0%";
+        }
+    }
+
+    el.addEventListener("mousedown", start);
+    el.addEventListener("touchstart", start, { passive: false });
+    el.addEventListener("mouseup", () => cancel());
+    el.addEventListener("mouseleave", () => cancel());
+    el.addEventListener("touchend", () => cancel());
+    el.addEventListener("touchcancel", () => cancel());
 }
 
 async function loadWeightChart() {
@@ -465,5 +650,224 @@ function updateAgeDisplay(birthDateStr) {
         text = `${y} éves (${totalWeeks} hetes)`;
     }
     document.getElementById("ageStatus").textContent = text;
+}
+
+const EVENT_CATEGORIES = {
+    orvos:       { icon: "🩺", label: "Orvos",        color: "#dbeafe", border: "#93c5fd" },
+    oltas:       { icon: "💉", label: "Oltás",         color: "#fce7f3", border: "#f9a8d4" },
+    gyogyszer:   { icon: "💊", label: "Gyógyszer",     color: "#fef3c7", border: "#fcd34d" },
+    meres:       { icon: "⚖️", label: "Mérés",         color: "#f0fdf4", border: "#86efac" },
+    merfoldko:   { icon: "🎉", label: "Mérföldkő",    color: "#fdf4ff", border: "#e879f9" },
+    nevnap:      { icon: "🌸", label: "Névnap",        color: "#fff1f2", border: "#fda4af" },
+    szuletesnap: { icon: "🎂", label: "Születésnap",   color: "#fff7ed", border: "#fdba74" },
+    egyeb:       { icon: "📅", label: "Egyéb",         color: "#f8fafc", border: "#cbd5e1" },
+};
+
+let allEvents = [];
+let activeEventFilter = null;
+
+function openEventForm(event = null) {
+    document.getElementById("eventOverlay").classList.remove("hidden");
+    lockScroll();
+    document.getElementById("eventError").classList.add("hidden");
+    document.getElementById("eventSuccess").classList.add("hidden");
+    document.getElementById("eventForm").reset();
+    const now = new Date();
+    if (event) {
+        document.getElementById("eventId").value = event.id;
+        document.getElementById("eventDate").value = event.eventDate;
+        document.getElementById("eventTime").value = event.eventTime || "";
+        document.getElementById("eventDuration").value = event.durationMin;
+        document.getElementById("eventTitle").value = event.title;
+        document.getElementById("eventNotes").value = event.notes || "";
+        document.getElementById("eventRecurring").value = event.recurring || "none";
+        document.getElementById("eventAllDay").checked = event.allDay || false;
+        const radio = document.querySelector(`input[name="eventCategory"][value="${event.category}"]`);
+        if (radio) radio.checked = true;
+        document.querySelector(".modal-header h2").textContent = "📅 Edit Event";
+    } else {
+        document.getElementById("eventId").value = "";
+        document.getElementById("eventDate").value = now.toISOString().split("T")[0];
+        document.getElementById("eventTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+        document.getElementById("eventDuration").value = 60;
+        document.getElementById("eventRecurring").value = "none";
+        document.getElementById("eventAllDay").checked = false;
+        document.querySelector(".modal-header h2").textContent = "📅 Add Event";
+    }
+    document.querySelectorAll("input[name='eventCategory']").forEach(r => {
+        r.addEventListener("change", () => {
+            const autoRecurring = ["nevnap", "szuletesnap"].includes(r.value);
+            document.getElementById("eventRecurring").value = autoRecurring ? "yearly" : "none";
+        });
+    });
+    document.getElementById("eventAllDay").addEventListener("change", e => {
+        document.getElementById("eventTime").disabled = e.target.checked;
+        document.getElementById("eventDuration").disabled = e.target.checked;
+        if (e.target.checked) {
+            document.getElementById("eventTime").value = "";
+        }
+    });
+}
+
+function closeEventForm() {
+    document.getElementById("eventOverlay").classList.add("hidden");
+    unlockScroll();
+}
+
+async function submitEvent(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById("eventError");
+    const successEl = document.getElementById("eventSuccess");
+    errorEl.classList.add("hidden"); successEl.classList.add("hidden");
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    submitBtn.disabled = true; submitBtn.textContent = "Saving...";
+    const id = document.getElementById("eventId").value;
+    const payload = {
+        title: document.getElementById("eventTitle").value.trim(),
+        category: document.querySelector("input[name='eventCategory']:checked")?.value || "egyeb",
+        eventDate: document.getElementById("eventDate").value,
+        eventTime: document.getElementById("eventTime").value || null,
+        durationMin: parseInt(document.getElementById("eventDuration").value) || 60,
+        notes: document.getElementById("eventNotes").value.trim() || null,
+        recurring: document.getElementById("eventRecurring").value,
+        allDay: document.getElementById("eventAllDay").checked,
+    };
+    try {
+        const url = id ? `/api/events/${id}` : "/api/events";
+        const method = id ? "PUT" : "POST";
+        const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `Server error: ${res.status}`); }
+        successEl.textContent = "Saved!"; successEl.classList.remove("hidden");
+        setTimeout(() => { closeEventForm(); loadEvents(); }, 1000);
+    } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
+    finally { submitBtn.disabled = false; submitBtn.textContent = "Save Event"; }
+}
+
+async function loadEvents() {
+    allEvents = await fetch("/api/events").then(r => r.json()).catch(() => []);
+    renderEvents();
+}
+
+function renderEvents() {
+    const now = new Date();
+    const thisYear = now.getFullYear();
+
+    // expand recurring events
+    const expanded = [];
+    const baseEvents = activeEventFilter ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
+    const oneYearOut = new Date(now); oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
+    baseEvents.forEach(e => {
+        if (!e.recurring || e.recurring === "none") { expanded.push(e); return; }
+        const origin = new Date(e.eventDate);
+        let cur = new Date(origin);
+        // go back to find first occurrence before now if needed
+        while (cur > now) {
+            if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
+            else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() - 1);
+            else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() - 1);
+        }
+        while (cur <= oneYearOut) {
+            const dateStr = cur.toISOString().split("T")[0];
+            expanded.push({ ...e, eventDate: dateStr });
+            if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
+            else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() + 1);
+            else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() + 1);
+        }
+    });
+    // for recurring events keep only the most relevant occurrence per id
+    const byId = new Map();
+    expanded.forEach(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        const existing = byId.get(e.id);
+        if (!existing) { byId.set(e.id, e); return; }
+        const existingStart = new Date(`${existing.eventDate}T${existing.eventTime || "00:00"}`);
+        // prefer upcoming over past; among same side prefer closest to now
+        const eIsFuture = start >= now;
+        const exIsFuture = existingStart >= now;
+        if (eIsFuture && !exIsFuture) { byId.set(e.id, e); return; }
+        if (!eIsFuture && exIsFuture) return;
+        if (eIsFuture && exIsFuture && start < existingStart) { byId.set(e.id, e); return; }
+        if (!eIsFuture && !exIsFuture && start > existingStart) { byId.set(e.id, e); }
+    });
+    const events = [...byId.values()].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+    const ongoing = events.filter(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        const end = new Date(start.getTime() + (e.allDay ? 86400000 : e.durationMin * 60000));
+        return start <= now && now <= end;
+    });
+    const upcoming = events.filter(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        return start > now;
+    });
+    const ongoingIds = new Set(ongoing.map(e => e.id));
+    const upcomingIds = new Set(upcoming.map(e => e.id));
+    const past = events.filter(e => {
+        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
+        const end = new Date(start.getTime() + (e.allDay ? 86400000 : e.durationMin * 60000));
+        return end < now && !ongoingIds.has(e.id) && !upcomingIds.has(e.id);
+    });
+
+    const ongoingEl = document.getElementById("eventsOngoing");
+    const upcomingEl = document.getElementById("eventsUpcoming");
+    const pastEl = document.getElementById("eventsPast");
+    const allEl = document.getElementById("eventsAll");
+
+    ongoingEl.innerHTML = ongoing.length ? `<div class="events-section-label">🔴 Folyamatban</div>` + ongoing.map(e => eventCard(e, "ongoing")).join("") : "";
+    upcomingEl.innerHTML = upcoming.length ? `<div class="events-section-label">⏳ Közelgő</div>` + upcoming.slice(0, 1).map(e => eventCard(e, "upcoming")).join("") : "";
+    pastEl.innerHTML = past.length ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).reverse().map(e => eventCard(e, "past")).join("") : "";
+
+    const prominentKeys = new Set([
+        ...ongoing.map(e => `${e.id}-${e.eventDate}`),
+        ...upcoming.slice(0, 1).map(e => `${e.id}-${e.eventDate}`),
+        ...past.slice(-2).map(e => `${e.id}-${e.eventDate}`),
+    ]);
+    const rest = events.filter(e => !prominentKeys.has(`${e.id}-${e.eventDate}`));
+
+    renderEventFilters();
+    allEl.innerHTML = rest.length
+        ? `<div class="events-section-label">📋 Többi</div>` + [...rest].reverse().map(e => eventCard(e, "all")).join("")
+        : "";
+}
+
+function eventCard(e, context) {
+    const cat = EVENT_CATEGORIES[e.category] || EVENT_CATEGORIES.egyeb;
+    const timeStr = e.allDay ? "Egész napos" : (e.eventTime ? e.eventTime.substring(0,5) : "");
+    const recurStr = e.recurring && e.recurring !== "none" ? ` · 🔄 ${e.recurring}` : "";
+    const prominent = context === "ongoing" || context === "upcoming";
+    return `<div class="event-card ${prominent ? "event-card--prominent" : ""}" style="background:${cat.color};border-color:${cat.border}">
+        <div class="event-card-icon">${cat.icon}</div>
+        <div class="event-card-body">
+            <div class="event-card-title">${e.title}</div>
+            <div class="event-card-meta">${e.eventDate}${timeStr ? " · " + timeStr : ""}${e.allDay ? "" : " · " + e.durationMin + " min"} · ${cat.label}${recurStr}</div>
+            ${e.notes ? `<div class="event-card-notes">${e.notes}</div>` : ""}
+        </div>
+        <div class="event-card-actions">
+            <button class="row-btn" onclick="openEventForm(${JSON.stringify(e).split('"').join('&quot;')})">✏️</button>
+            <button class="row-btn" onclick="deleteEvent(${e.id})">🗑️</button>
+        </div>
+    </div>`;
+}
+
+function renderEventFilters() {
+    const bar = document.getElementById("eventFilterBar");
+    const cats = [...new Set(allEvents.map(e => e.category))];
+    bar.innerHTML = `<button class="event-filter-btn ${!activeEventFilter ? "active" : ""}" onclick="setEventFilter(null)">Összes</button>` +
+        cats.map(c => {
+            const cat = EVENT_CATEGORIES[c] || EVENT_CATEGORIES.egyeb;
+            return `<button class="event-filter-btn ${activeEventFilter === c ? "active" : ""}" onclick="setEventFilter('${c}')">${cat.icon} ${cat.label}</button>`;
+        }).join("");
+}
+
+function setEventFilter(cat) {
+    activeEventFilter = cat;
+    renderEvents();
+}
+
+async function deleteEvent(id) {
+    if (!confirm("Delete this event?")) return;
+    await fetch(`/api/events/${id}`, { method: "DELETE" });
+    allEvents = allEvents.filter(e => e.id !== id);
+    renderEvents();
 }
 
