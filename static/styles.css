@@ -251,7 +251,7 @@ canvas { max-height: 320px; }
     padding: 0.6rem 1rem;
     border: 1px solid #f3d5e3;
     border-radius: 8px;
-    font-size: 0.875rem;
+    font-size: 16px;
     color: #4a2438;
     background: #fdf2f6;
     margin-bottom: 1rem;
@@ -285,7 +285,7 @@ canvas { max-height: 320px; }
     padding: 0.4rem 0.75rem;
     border: 1px solid #f3d5e3;
     border-radius: 8px;
-    font-size: 0.875rem;
+    font-size: 16px;
     color: #4a2438;
     background: #fdf2f6;
     outline: none;
@@ -459,7 +459,7 @@ tbody tr:hover { background: #fdf2f6; }
     padding: 0.6rem 0.875rem;
     border: 1px solid #f3d5e3;
     border-radius: 8px;
-    font-size: 0.875rem;
+    font-size: 16px;
     color: #4a2438;
     background: #fdf2f6;
     outline: none;
@@ -993,7 +993,7 @@ tbody tr:hover { background: #fdf2f6; }
     padding: 0.6rem 0.875rem;
     border: 1px solid #f3d5e3;
     border-radius: 8px;
-    font-size: 0.875rem;
+    font-size: 16px;
     color: #4a2438;
     background: #fdf2f6;
     outline: none;

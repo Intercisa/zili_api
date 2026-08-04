@@ -190,9 +190,26 @@ async function saveVitamin(key, checked, date) {
     await fetch(`/api/vitamins/${key}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checked, date }) });
 }
 
+function lockScroll() {
+    const scrollY = window.scrollY;
+    document.body.dataset.scrollY = scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+}
+
+function unlockScroll() {
+    const scrollY = parseInt(document.body.dataset.scrollY || '0');
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    delete document.body.dataset.scrollY;
+    window.scrollTo(0, scrollY);
+}
+
 function openForm(restorePending = false) {
     document.getElementById("formOverlay").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    lockScroll();
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
     document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
@@ -218,7 +235,7 @@ function openForm(restorePending = false) {
 
 function closeForm() {
     document.getElementById("formOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
+    unlockScroll();
     document.getElementById("entryForm").reset();
     document.getElementById("dailySummary").value = "";
     document.getElementById("formError").classList.add("hidden");
@@ -232,14 +249,14 @@ function closeForm() {
 
 function openGrowthForm() {
     document.getElementById("growthOverlay").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    lockScroll();
     document.getElementById("growthError").classList.add("hidden");
     document.getElementById("growthSuccess").classList.add("hidden");
 }
 
 function closeGrowthForm() {
     document.getElementById("growthOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
+    unlockScroll();
     document.getElementById("growthForm").reset();
     document.getElementById("growthError").classList.add("hidden");
     document.getElementById("growthSuccess").classList.add("hidden");
@@ -359,7 +376,7 @@ async function submitEntry(event) {
 
 function openEditForm(item) {
     document.getElementById("editOverlay").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    lockScroll();
     document.getElementById("editError").classList.add("hidden");
     document.getElementById("editSuccess").classList.add("hidden");
     document.getElementById("editId").value = item.id;
@@ -374,7 +391,7 @@ function openEditForm(item) {
 
 function closeEditForm() {
     document.getElementById("editOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
+    unlockScroll();
     document.getElementById("editForm").reset();
     document.getElementById("editError").classList.add("hidden");
     document.getElementById("editSuccess").classList.add("hidden");
@@ -651,7 +668,7 @@ let activeEventFilter = null;
 
 function openEventForm(event = null) {
     document.getElementById("eventOverlay").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
+    lockScroll();
     document.getElementById("eventError").classList.add("hidden");
     document.getElementById("eventSuccess").classList.add("hidden");
     document.getElementById("eventForm").reset();
@@ -694,7 +711,7 @@ function openEventForm(event = null) {
 
 function closeEventForm() {
     document.getElementById("eventOverlay").classList.add("hidden");
-    document.body.style.overflow = "";
+    unlockScroll();
 }
 
 async function submitEvent(e) {
