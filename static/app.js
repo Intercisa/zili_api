@@ -524,7 +524,7 @@ function attachLongPress(el, onTrigger, duration = 800) {
 async function loadWeightChart() {
     const from = document.getElementById("weightFromDate").value;
     const to = document.getElementById("weightToDate").value;
-    const data = await fetch(`/api/weights?from=${from}&to=${to}`).then(r => r.json());
+    const data = await fetch(`/api/weights?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("weightChart");
     if (weightChart) weightChart.destroy();
     weightChart = new Chart(ctx, {
@@ -532,12 +532,13 @@ async function loadWeightChart() {
         data: { labels: data.map(i => i.date.substring(0, 10)), datasets: [{ label: "Weight (g)", data: data.map(i => i.weight), borderColor: "#7b174e", backgroundColor: "rgba(235, 63, 126, 0.88)", borderWidth: 3, pointRadius: 4, pointHoverRadius: 7, tension: 0.3, fill: true }] },
         options: { responsive: true, plugins: { datalabels: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } }, scales: { y: { title: { display: true, text: "Weight in grams" } }, x: { title: { display: true, text: "Date" } } } }
     });
+    setupChartScroll("weightChart", "weightFromDate", "weightToDate", loadWeightChart);
 }
 
 async function loadStatusWeightChart() {
     const from = document.getElementById("statusWeightFromDate").value;
     const to = document.getElementById("statusWeightToDate").value;
-    const data = await fetch(`/api/status-weights?from=${from}&to=${to}`).then(r => r.json());
+    const data = await fetch(`/api/status-weights?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("statusWeightChart");
     if (statusWeightChart) statusWeightChart.destroy();
     statusWeightChart = new Chart(ctx, {
@@ -545,12 +546,13 @@ async function loadStatusWeightChart() {
         data: { labels: data.map(i => i.date.substring(0, 10)), datasets: [{ label: "Status weight (g)", data: data.map(i => i.weight), borderColor: "#f472b6", backgroundColor: "rgba(244, 114, 182, 0.15)", borderWidth: 3, pointRadius: 4, pointHoverRadius: 7, tension: 0.3, fill: true }] },
         options: { responsive: true, plugins: { datalabels: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } }, scales: { y: { title: { display: true, text: "Weight in grams" } }, x: { title: { display: true, text: "Date" } } } }
     });
+    setupChartScroll("statusWeightChart", "statusWeightFromDate", "statusWeightToDate", loadStatusWeightChart);
 }
 
 async function loadSleepAwakeChart() {
     const from = document.getElementById("sleepFromDate").value;
     const to = document.getElementById("sleepToDate").value;
-    const data = await fetch(`/api/sleep-awake?from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+    const data = await fetch(`/api/sleep-awake?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("sleepAwakeChart");
     if (sleepAwakeChart) sleepAwakeChart.destroy();
     sleepAwakeChart = new Chart(ctx, {
@@ -568,12 +570,13 @@ async function loadSleepAwakeChart() {
             scales: { x: { stacked: true, title: { display: true, text: "Date" } }, y: { stacked: true, title: { display: true, text: "Hours" } } }
         }
     });
+    setupChartScroll("sleepAwakeChart", "sleepFromDate", "sleepToDate", loadSleepAwakeChart);
 }
 
 async function loadMilkConsumedChart() {
     const from = document.getElementById("milkFromDate").value;
     const to = document.getElementById("milkToDate").value;
-    const data = await fetch(`/api/milk-consumed?from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+    const data = await fetch(`/api/milk-consumed?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("milkConsumedChart");
     if (milkConsumedChart) milkConsumedChart.destroy();
     milkConsumedChart = new Chart(ctx, {
@@ -585,6 +588,66 @@ async function loadMilkConsumedChart() {
             scales: { y: { beginAtZero: true, title: { display: true, text: "Milk consumed in grams" } }, x: { title: { display: true, text: "Date" } } }
         }
     });
+    setupChartScroll("milkConsumedChart", "milkFromDate", "milkToDate", loadMilkConsumedChart);
+}
+
+function setupChartScroll(canvasId, fromId, toId, reloadFn) {
+    const el = document.getElementById(canvasId);
+    if (el._scrollAbort) el._scrollAbort.abort();
+    const controller = new AbortController();
+    el._scrollAbort = controller;
+    const signal = controller.signal;
+
+    let touchStartX = null;
+    let scrollCooldown = false;
+
+    function shift(forward) {
+        if (scrollCooldown) return;
+        scrollCooldown = true;
+        setTimeout(() => scrollCooldown = false, 300);
+
+        const from = new Date(document.getElementById(fromId).value);
+        const to = new Date(document.getElementById(toId).value);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const rangeDays = Math.round((to - from) / 86400000);
+        const step = Math.max(1, Math.round(rangeDays / 3));
+        const delta = forward ? step : -step;
+
+        let newTo = new Date(to); newTo.setDate(newTo.getDate() + delta);
+        let newFrom = new Date(newTo); newFrom.setDate(newTo.getDate() - rangeDays);
+
+        if (forward && newTo > today) {
+            newTo = new Date(today);
+            newFrom = new Date(today); newFrom.setDate(today.getDate() - rangeDays);
+        }
+
+        const floor = new Date("2020-01-01");
+        if (!forward && newFrom < floor) {
+            newFrom = new Date(floor);
+            newTo = new Date(newFrom); newTo.setDate(newFrom.getDate() + rangeDays);
+        }
+
+        const fmt = d => d.toISOString().split("T")[0];
+        const currentFrom = document.getElementById(fromId).value;
+        const currentTo = document.getElementById(toId).value;
+        if (fmt(newFrom) === currentFrom && fmt(newTo) === currentTo) return;
+        document.getElementById(fromId).value = fmt(newFrom);
+        document.getElementById(toId).value = fmt(newTo);
+        reloadFn();
+    }
+
+    el.addEventListener("wheel", e => {
+        e.preventDefault();
+        shift(e.deltaX > 0 || e.deltaY > 0);
+    }, { passive: false, signal });
+
+    el.addEventListener("touchstart", e => { touchStartX = e.touches[0].clientX; }, { passive: true, signal });
+    el.addEventListener("touchend", e => {
+        if (touchStartX === null) return;
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) shift(diff > 0);
+        touchStartX = null;
+    }, { passive: true, signal });
 }
 
 function appendLogsToTable(items) {

@@ -363,7 +363,7 @@ func getWeights(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	var data []WeightPoint
+	data := []WeightPoint{}
 	for rows.Next() {
 		var item WeightPoint
 		if err := rows.Scan(&item.Date, &item.Weight); err != nil {
@@ -390,7 +390,7 @@ func getStatusWeights(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	var data []WeightPoint
+	data := []WeightPoint{}
 	for rows.Next() {
 		var item WeightPoint
 		if err := rows.Scan(&item.Date, &item.Weight); err != nil {
@@ -444,7 +444,7 @@ func getMilkConsumed(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	var data []MilkConsumedPoint
+	data := []MilkConsumedPoint{}
 	for rows.Next() {
 		var item MilkConsumedPoint
 		if err := rows.Scan(&item.Date, &item.MilkConsumedG); err != nil {
@@ -673,7 +673,7 @@ func calcSleepAwake(logs []sleepLog, from, to string, now time.Time) []daySleepR
 	if sleepStart != nil {
 		addInterval(*sleepStart, now)
 	}
-	var result []daySleepResult
+	result := []daySleepResult{}
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
 		dr := dayMap[key]
