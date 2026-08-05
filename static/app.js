@@ -829,6 +829,7 @@ function eventCard(e, context) {
     const timeStr = e.allDay ? "Egész napos" : (e.eventTime ? e.eventTime.substring(0,5) : "");
     const recurStr = e.recurring && e.recurring !== "none" ? ` · 🔄 ${e.recurring}` : "";
     const prominent = context === "ongoing" || context === "upcoming";
+    const isPast = context === "past" || (context === "all" && new Date(`${e.eventDate}T${e.eventTime || "00:00"}`) < new Date());
     const itemsHtml = e.category === "lista" && e.items && e.items.length > 0
         ? `<ul class="checklist-items">${e.items.map(item =>
             `<li class="checklist-item ${item.checked ? "checked" : ""}">
@@ -840,7 +841,7 @@ function eventCard(e, context) {
             <input class="checklist-new-input" type="text" placeholder="Add item..." id="newEventItem-${e.id}" onkeydown="if(event.key==='Enter'){addEventItem(${e.id});}" />
             <button class="btn-secondary" onclick="addEventItem(${e.id})">Add</button>
            </div>` : "";
-    return `<div class="event-card ${prominent ? "event-card--prominent" : ""}" style="background:${cat.color};border-color:${cat.border}">
+    return `<div class="event-card ${prominent ? "event-card--prominent" : ""} ${isPast ? "event-card--past" : ""}" style="background:${cat.color};border-color:${cat.border}">
         <div class="event-card-icon">${cat.icon}</div>
         <div class="event-card-body">
             <div class="event-card-title">${e.title}</div>
@@ -914,4 +915,3 @@ async function deleteEventItem(itemId, eventId) {
     if (ev && ev.items) ev.items = ev.items.filter(i => i.id !== itemId);
     renderEvents();
 }
-

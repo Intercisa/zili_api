@@ -1147,3 +1147,8 @@ tbody tr:hover { background: #fdf2f6; }
     text-align: center;
 }
 
+.event-card--past {
+    opacity: 0.45;
+    filter: grayscale(0.4);
+}
+
