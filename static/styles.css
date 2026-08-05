@@ -1018,3 +1018,132 @@ tbody tr:hover { background: #fdf2f6; }
     cursor: not-allowed;
 }
 
+/* ── Checklists ─────────────────────────────────────────────────────────────── */
+.checklist-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.checklist-new-input {
+    flex: 1;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid #f9a8d4;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.checklist-new-input:focus {
+    border-color: #db2777;
+    box-shadow: 0 0 0 2px rgba(219,39,119,0.15);
+}
+
+.checklist-card {
+    background: #fff;
+    border: 1px solid #fce7f3;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.checklist-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.checklist-title {
+    font-weight: 700;
+    font-size: 1rem;
+    flex: 1;
+    color: #9d174d;
+}
+
+.checklist-progress {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.checklist-items {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.checklist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.checklist-item:hover {
+    background: #fdf2f8;
+}
+
+.checklist-item label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.checklist-item.checked label span {
+    text-decoration: line-through;
+    color: #9ca3af;
+}
+
+.checklist-item input[type="checkbox"] {
+    accent-color: #db2777;
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+}
+
+.checklist-add-item {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.checklist-add-item .checklist-new-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.checklist-add-item .btn-secondary {
+    flex-shrink: 0;
+    padding: 0.5rem 0.875rem;
+    white-space: nowrap;
+}
+
+.checklist-new-input {
+    color: #4a2438;
+    background: #fdf2f6;
+    font-size: 16px;
+}
+
+.checklist-add-item {
+    flex-direction: column;
+}
+
+.checklist-add-item .checklist-new-input {
+    width: 100%;
+    padding: 0.65rem 0.875rem;
+}
+
+.checklist-add-item .btn-secondary {
+    width: 100%;
+    text-align: center;
+}
+

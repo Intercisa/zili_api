@@ -18,7 +18,6 @@
     <div class="header-actions">
         <button id="openFormButton">+ Add Entry</button>
         <button id="openGrowthFormButton">📏 Add Growth</button>
-        <button id="openEventFormButton">📅 Add Event</button>
         <button id="refreshButton">Refresh</button>
     </div>
 </header>
@@ -228,6 +227,7 @@
                     <label class="event-cat-option"><input type="radio" name="eventCategory" value="nevnap"> <span>🌸 Névnap</span></label>
                     <label class="event-cat-option"><input type="radio" name="eventCategory" value="szuletesnap"> <span>🎂 Születésnap</span></label>
                     <label class="event-cat-option"><input type="radio" name="eventCategory" value="egyeb"> <span>📅 Egyéb</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="lista"> <span>🛒 Lista</span></label>
                 </div>
             </div>
             <div class="form-group full-width">
@@ -312,6 +312,7 @@
             <div id="growthTimeline" class="growth-timeline"></div>
         </div>
         <div id="eventsTab" class="tab-panel">
+            <button id="openEventFormButton" onclick="openEventForm()">📅 Add Event</button>
             <div id="eventsOngoing"></div>
             <div id="eventsUpcoming"></div>
             <div id="eventsPast"></div>
@@ -403,4 +404,3 @@
 <script src="/static/app.js"></script>
 </body>
 </html>
-
