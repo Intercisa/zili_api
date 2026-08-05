@@ -584,7 +584,7 @@ async function loadMilkConsumedChart() {
         data: { labels: data.map(i => i.date.substring(0, 10)), datasets: [{ label: "Milk consumed (g)", data: data.map(i => i.milkConsumedG), backgroundColor: "#f9a8d4", borderColor: "#db2777", borderWidth: 1 }] },
         options: {
             responsive: true,
-            plugins: { datalabels: { anchor: "center", align: "center", color: "#9d174d", font: { weight: "700", size: 14 }, formatter: v => `${v} g` }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
+            plugins: { datalabels: { anchor: "center", align: "center", color: "#9d174d", font: { weight: "700", size: 14 }, rotation: () => window.innerWidth < 600 ? -90 : 0, formatter: v => `${v} g` }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
             scales: { y: { beginAtZero: true, title: { display: true, text: "Milk consumed in grams" } }, x: { title: { display: true, text: "Date" } } }
         }
     });
@@ -606,9 +606,10 @@ function setupChartScroll(canvasId, fromId, toId, reloadFn) {
         scrollCooldown = true;
         setTimeout(() => scrollCooldown = false, 300);
 
-        const from = new Date(document.getElementById(fromId).value);
-        const to = new Date(document.getElementById(toId).value);
-        const today = new Date(); today.setHours(0,0,0,0);
+        const fmt = d => d.toISOString().split("T")[0];
+        const todayStr = fmt(new Date());
+        const from = new Date(document.getElementById(fromId).value + "T12:00:00");
+        const to = new Date(document.getElementById(toId).value + "T12:00:00");
         const rangeDays = Math.round((to - from) / 86400000);
         const step = Math.max(1, Math.round(rangeDays / 3));
         const delta = forward ? step : -step;
@@ -616,18 +617,16 @@ function setupChartScroll(canvasId, fromId, toId, reloadFn) {
         let newTo = new Date(to); newTo.setDate(newTo.getDate() + delta);
         let newFrom = new Date(newTo); newFrom.setDate(newTo.getDate() - rangeDays);
 
-        if (forward && newTo > today) {
-            newTo = new Date(today);
-            newFrom = new Date(today); newFrom.setDate(today.getDate() - rangeDays);
+        if (forward && fmt(newTo) > todayStr) {
+            newTo = new Date(todayStr + "T12:00:00");
+            newFrom = new Date(newTo); newFrom.setDate(newTo.getDate() - rangeDays);
         }
 
-        const floor = new Date("2020-01-01");
-        if (!forward && newFrom < floor) {
-            newFrom = new Date(floor);
+        if (!forward && fmt(newFrom) < "2020-01-01") {
+            newFrom = new Date("2020-01-01T12:00:00");
             newTo = new Date(newFrom); newTo.setDate(newFrom.getDate() + rangeDays);
         }
 
-        const fmt = d => d.toISOString().split("T")[0];
         const currentFrom = document.getElementById(fromId).value;
         const currentTo = document.getElementById(toId).value;
         if (fmt(newFrom) === currentFrom && fmt(newTo) === currentTo) return;
