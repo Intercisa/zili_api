@@ -27,6 +27,12 @@ type DailyLog struct {
 	HeightCm          *float64 `json:"heightCm"`
 	HeadCm            *float64 `json:"headCm"`
 	MeasurementWeight *int     `json:"measurementWeightG"`
+	SleepEvent        *string  `json:"sleepEvent"`
+	Diaper            *string  `json:"diaper"`
+	FedBreast         bool     `json:"fedBreast"`
+	FedBottle         bool     `json:"fedBottle"`
+	Bathed            bool     `json:"bathed"`
+	Milestone         bool     `json:"milestone"`
 }
 
 type WeightPoint struct {
@@ -181,7 +187,8 @@ func getLogs(c *gin.Context) {
 	rows, err := db.Query(`
 		SELECT id, log_date, log_time, daily_summary, status_weight_g,
 		       pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
-		       height_cm, head_cm, measurement_weight_g
+		       height_cm, head_cm, measurement_weight_g,
+		       sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone
 		FROM zili_daily_log
 		WHERE ($3 = '' OR daily_summary ILIKE '%' || $3 || '%')
 		ORDER BY log_date DESC, COALESCE(log_time, '00:00') DESC, id DESC
@@ -198,24 +205,22 @@ func getLogs(c *gin.Context) {
 		var entry DailyLog
 		var logTime sql.NullString
 		var heightCm, headCm sql.NullFloat64
+		var sleepEvent, diaper sql.NullString
 		err := rows.Scan(
 			&entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
 			&entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
 			&entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
+			&sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.Bathed, &entry.Milestone,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if logTime.Valid {
-			entry.LogTime = &logTime.String
-		}
-		if heightCm.Valid {
-			entry.HeightCm = &heightCm.Float64
-		}
-		if headCm.Valid {
-			entry.HeadCm = &headCm.Float64
-		}
+		if logTime.Valid { entry.LogTime = &logTime.String }
+		if heightCm.Valid { entry.HeightCm = &heightCm.Float64 }
+		if headCm.Valid { entry.HeadCm = &headCm.Float64 }
+		if sleepEvent.Valid { entry.SleepEvent = &sleepEvent.String }
+		if diaper.Valid { entry.Diaper = &diaper.String }
 		logs = append(logs, entry)
 	}
 	if err := rows.Err(); err != nil {
@@ -230,7 +235,8 @@ func getLogByDate(c *gin.Context) {
 	rows, err := db.Query(`
 		SELECT id, log_date, log_time, daily_summary, status_weight_g,
 		       pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
-		       height_cm, head_cm, measurement_weight_g
+		       height_cm, head_cm, measurement_weight_g,
+		       sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone
 		FROM zili_daily_log
 		WHERE log_date = $1
 		ORDER BY COALESCE(log_time, '00:00'), id
@@ -246,24 +252,22 @@ func getLogByDate(c *gin.Context) {
 		var entry DailyLog
 		var logTime sql.NullString
 		var heightCm, headCm sql.NullFloat64
+		var sleepEvent, diaper sql.NullString
 		err := rows.Scan(
 			&entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
 			&entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
 			&entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
+			&sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.Bathed, &entry.Milestone,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if logTime.Valid {
-			entry.LogTime = &logTime.String
-		}
-		if heightCm.Valid {
-			entry.HeightCm = &heightCm.Float64
-		}
-		if headCm.Valid {
-			entry.HeadCm = &headCm.Float64
-		}
+		if logTime.Valid { entry.LogTime = &logTime.String }
+		if heightCm.Valid { entry.HeightCm = &heightCm.Float64 }
+		if headCm.Valid { entry.HeadCm = &headCm.Float64 }
+		if sleepEvent.Valid { entry.SleepEvent = &sleepEvent.String }
+		if diaper.Valid { entry.Diaper = &diaper.String }
 		logs = append(logs, entry)
 	}
 	c.JSON(http.StatusOK, logs)
@@ -455,13 +459,15 @@ func createLog(c *gin.Context) {
 		INSERT INTO zili_daily_log (
 			log_date, log_time, daily_summary, status_weight_g,
 			pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
-			height_cm, head_cm, measurement_weight_g
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+			height_cm, head_cm, measurement_weight_g,
+			sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 		RETURNING id
 	`,
 		entry.LogDate, entry.LogTime, entry.DailySummary,
 		entry.StatusWeightG, entry.PreFeedWeightG, entry.PostFeedWeightG,
 		entry.MilkTransferG, entry.HeightCm, entry.HeadCm, entry.MeasurementWeight,
+		entry.SleepEvent, entry.Diaper, entry.FedBreast, entry.FedBottle, entry.Bathed, entry.Milestone,
 	).Scan(&id)
 
 	if err != nil {
@@ -684,11 +690,10 @@ func getSleepAwake(c *gin.Context) {
 	from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
 
 	rows, err := db.Query(`
-		SELECT log_date::text, log_time::text, daily_summary
+		SELECT log_date::text, log_time::text, sleep_event
 		FROM zili_daily_log
 		WHERE log_time IS NOT NULL
-		  AND daily_summary IS NOT NULL
-		  AND (daily_summary ILIKE '%elaludt%' OR daily_summary ILIKE '%ébredt%')
+		  AND sleep_event IS NOT NULL
 		  AND log_date BETWEEN $1::date - INTERVAL '1 day' AND $2::date
 		ORDER BY log_date, log_time
 	`, from, to)
@@ -701,12 +706,15 @@ func getSleepAwake(c *gin.Context) {
 	var logs []sleepLog
 	for rows.Next() {
 		var r sleepLog
-		if err := rows.Scan(&r.Date, &r.Time, &r.Summary); err != nil {
+		var sleepEvent string
+		if err := rows.Scan(&r.Date, &r.Time, &sleepEvent); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		if len(r.Date) > 10 { r.Date = r.Date[:10] }
 		if len(r.Time) > 5 { r.Time = r.Time[:5] }
+		if sleepEvent == "fell_asleep" { r.Summary = "elaludt" }
+		if sleepEvent == "woke_up" { r.Summary = "ébredt" }
 		logs = append(logs, r)
 	}
 	c.JSON(http.StatusOK, calcSleepAwake(logs, from, to, nowBp()))
@@ -718,14 +726,14 @@ func getCurrentStatus(c *gin.Context) {
 	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
 
 	rows, err := db.Query(`
-		SELECT log_date::text, log_time::text, daily_summary,
+		SELECT log_date::text, log_time::text, sleep_event,
 			EXTRACT(EPOCH FROM (
 				NOW() AT TIME ZONE 'Europe/Budapest'
 				- (log_date::text || ' ' || log_time::text)::timestamp
 			)) AS seconds_ago
 		FROM zili_daily_log
-		WHERE log_time IS NOT NULL AND daily_summary IS NOT NULL
-		  AND (daily_summary ILIKE '%elaludt%' OR daily_summary ILIKE '%ébredt%')
+		WHERE log_time IS NOT NULL
+		  AND sleep_event IS NOT NULL
 		  AND log_date IN ($1, $2)
 		ORDER BY log_date, log_time
 	`, yesterday, today)
@@ -738,32 +746,24 @@ func getCurrentStatus(c *gin.Context) {
 	type logRow struct {
 		Date       string
 		Time       string
-		Summary    string
+		SleepEvent string
 		SecondsAgo float64
 	}
 	var logs []logRow
 	for rows.Next() {
 		var r logRow
-		rows.Scan(&r.Date, &r.Time, &r.Summary, &r.SecondsAgo)
+		rows.Scan(&r.Date, &r.Time, &r.SleepEvent, &r.SecondsAgo)
 		if len(r.Date) > 10 { r.Date = r.Date[:10] }
 		if len(r.Time) > 5 { r.Time = r.Time[:5] }
 		logs = append(logs, r)
 	}
 
-	sleepTags := []string{"elaludt", "cicin elaludt"}
-
-	type entry struct {
-		SecondsAgo float64
-	}
+	type entry struct{ SecondsAgo float64 }
 	var lastSleep, lastWake *entry
 	for _, l := range logs {
-		isSleep := false
-		for _, tag := range sleepTags {
-			if strings.Contains(l.Summary, tag) { isSleep = true; break }
-		}
 		e := &entry{SecondsAgo: l.SecondsAgo}
-		if isSleep { lastSleep = e }
-		if strings.Contains(l.Summary, "ébredt") { lastWake = e }
+		if l.SleepEvent == "fell_asleep" { lastSleep = e }
+		if l.SleepEvent == "woke_up" { lastWake = e }
 	}
 
 	fmtDur := func(seconds float64) string {
@@ -783,17 +783,17 @@ func getCurrentStatus(c *gin.Context) {
 		statusDur = fmtDur(lastWake.SecondsAgo)
 		statusState = "awake"
 	} else {
-		statusDur = ""
 		statusState = "sleep"
 	}
 
-	result := calcSleepAwake(func() []sleepLog {
-		var sl []sleepLog
-		for _, l := range logs {
-			sl = append(sl, sleepLog{Date: l.Date, Time: l.Time, Summary: l.Summary})
-		}
-		return sl
-	}(), yesterday, today, nowBp())
+	sleepLogs := make([]sleepLog, 0, len(logs))
+	for _, l := range logs {
+		var summary string
+		if l.SleepEvent == "fell_asleep" { summary = "elaludt" }
+		if l.SleepEvent == "woke_up" { summary = "ébredt" }
+		sleepLogs = append(sleepLogs, sleepLog{Date: l.Date, Time: l.Time, Summary: summary})
+	}
+	result := calcSleepAwake(sleepLogs, yesterday, today, nowBp())
 
 	var sleepMin, awakeMin int
 	for _, r := range result {
