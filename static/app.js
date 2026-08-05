@@ -763,21 +763,23 @@ async function loadEvents() {
 function renderEvents() {
     const now = new Date();
     const expanded = [];
-    const baseEvents = activeEventFilter ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
+    const baseEvents = activeEventFilter && activeEventFilter !== "__archived" ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
     const oneYearOut = new Date(now); oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
     baseEvents.forEach(e => {
         if (!e.recurring || e.recurring === "none") { expanded.push(e); return; }
         const origin = new Date(e.eventDate);
         let cur = new Date(origin);
         while (cur > now) {
-            if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
+            if (e.recurring === "daily") cur.setDate(cur.getDate() - 1);
+            else if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
             else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() - 1);
             else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() - 1);
         }
         while (cur <= oneYearOut) {
             const dateStr = cur.toISOString().split("T")[0];
             expanded.push({ ...e, eventDate: dateStr });
-            if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
+            if (e.recurring === "daily") cur.setDate(cur.getDate() + 1);
+            else if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
             else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() + 1);
             else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() + 1);
         }
@@ -811,17 +813,27 @@ function renderEvents() {
     });
     document.getElementById("eventsOngoing").innerHTML = ongoing.length ? `<div class="events-section-label">🔴 Folyamatban</div>` + ongoing.map(e => eventCard(e, "ongoing")).join("") : "";
     document.getElementById("eventsUpcoming").innerHTML = upcoming.length ? `<div class="events-section-label">⏳ Közelgő</div>` + upcoming.slice(0, 1).map(e => eventCard(e, "upcoming")).join("") : "";
-    document.getElementById("eventsPast").innerHTML = past.length ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).reverse().map(e => eventCard(e, "past")).join("") : "";
     const prominentKeys = new Set([
         ...ongoing.map(e => `${e.id}-${e.eventDate}`),
         ...upcoming.slice(0, 1).map(e => `${e.id}-${e.eventDate}`),
-        ...past.slice(-2).map(e => `${e.id}-${e.eventDate}`),
     ]);
     const rest = events.filter(e => !prominentKeys.has(`${e.id}-${e.eventDate}`));
+    const restPast = rest.filter(e => past.find(p => p.id === e.id && p.eventDate === e.eventDate));
+    const restFuture = rest.filter(e => !restPast.find(p => p.id === e.id && p.eventDate === e.eventDate));
     renderEventFilters();
-    document.getElementById("eventsAll").innerHTML = rest.length
-        ? `<div class="events-section-label">📋 Többi</div>` + [...rest].reverse().map(e => eventCard(e, "all")).join("")
-        : "";
+    if (activeEventFilter === "__archived") {
+        document.getElementById("eventsPast").innerHTML = "";
+        document.getElementById("eventsAll").innerHTML = past.length
+            ? `<div class="events-section-label">🗄️ Archív</div>` + [...past].reverse().map(e => eventCard(e, "past")).join("")
+            : `<div class="events-section-label">Nincs archívált esemény</div>`;
+    } else {
+        document.getElementById("eventsPast").innerHTML = past.length
+            ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).map(e => eventCard(e, "past")).join("")
+            : "";
+        document.getElementById("eventsAll").innerHTML = restFuture.length
+            ? `<div class="events-section-label">📋 Többi</div>` + [...restFuture].reverse().map(e => eventCard(e, "all")).join("")
+            : "";
+    }
 }
 
 function eventCard(e, context) {
@@ -864,7 +876,8 @@ function renderEventFilters() {
         cats.map(c => {
             const cat = EVENT_CATEGORIES[c] || EVENT_CATEGORIES.egyeb;
             return `<button class="event-filter-btn ${activeEventFilter === c ? "active" : ""}" onclick="setEventFilter('${c}')">${cat.icon} ${cat.label}</button>`;
-        }).join("");
+        }).join("") +
+        `<button class="event-filter-btn ${activeEventFilter === "__archived" ? "active" : ""}" onclick="setEventFilter('__archived')">🗄️ Archív</button>`;
 }
 
 function setEventFilter(cat) {

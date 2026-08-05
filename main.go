@@ -1009,6 +1009,8 @@ func getCalendar(c *gin.Context) {
 		}
 
 		switch e.Recurring {
+		case "daily":
+			sb.WriteString("RRULE:FREQ=DAILY\r\n")
 		case "weekly":
 			sb.WriteString("RRULE:FREQ=WEEKLY\r\n")
 		case "monthly":
