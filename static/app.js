@@ -132,7 +132,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (cat === "milk") document.getElementById("catMilk").classList.remove("hidden");
         });
     });
-    document.querySelectorAll(".feeding-type").forEach(r => r.addEventListener("change", syncQuickTags));
+    document.getElementById("fedBreast").addEventListener("change", syncQuickTags);
+    document.getElementById("fedBottle").addEventListener("change", syncQuickTags);
     document.querySelectorAll(".quick-tag").forEach(cb => cb.addEventListener("change", syncQuickTags));
     document.getElementById("measurementWeightG").addEventListener("input", syncQuickTags);
     document.getElementById("statusWeightG").addEventListener("input", syncQuickTags);
@@ -143,12 +144,14 @@ document.addEventListener("DOMContentLoaded", () => {
     attachLongPress(statusTile, async () => {
         const now = new Date();
         const logDate = now.toISOString().split("T")[0];
-        const logTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-        const summary = statusTile.dataset.currentState === "sleep" ? "ébredt" : "elaludt";
+        const logTime = `${String(now.getHours()).padStart(2,"00")}:${String(now.getMinutes()).padStart(2,"00")}`;
+        const isSleep = statusTile.dataset.currentState === "sleep";
+        const sleepEvent = isSleep ? "woke_up" : "fell_asleep";
+        const dailySummary = isSleep ? "ébredt" : "elaludt";
         await fetch("/api/logs", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ logDate, logTime, dailySummary: summary })
+            body: JSON.stringify({ logDate, logTime, dailySummary, sleepEvent })
         });
         await updateCurrentStatus();
         loadLogs();
@@ -157,8 +160,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function syncQuickTags() {
     const parts = [];
-    const feedingType = document.querySelector(".feeding-type:checked");
-    if (feedingType) parts.push(feedingType.value);
+    const fedBreast = document.getElementById("fedBreast").checked;
+    const fedBottle = document.getElementById("fedBottle").checked;
+    if (fedBreast && fedBottle) parts.push("cici, cumisüveg");
+    else if (fedBreast) parts.push("cici");
+    else if (fedBottle) parts.push("cumisüveg");
     const pre = document.getElementById("preFeedWeightG").value.trim();
     const post = document.getElementById("postFeedWeightG").value.trim();
     if (pre || post) parts.push(`pre: ${pre || "?"}g, post: ${post || "?"}g`);
@@ -222,10 +228,8 @@ function openForm(restorePending = false) {
         document.getElementById("logTime").value = pending.logTime || "";
         document.getElementById("preFeedWeightG").value = pending.preFeedWeightG || "";
         document.getElementById("postFeedWeightG").value = pending.postFeedWeightG || "";
-        if (pending.feedingType) {
-            const radio = document.querySelector(`.feeding-type[value="${pending.feedingType}"]`);
-            if (radio) radio.checked = true;
-        }
+        document.getElementById("fedBreast").checked = pending.fedBreast || false;
+        document.getElementById("fedBottle").checked = pending.fedBottle || false;
     } else {
         const now = new Date();
         document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
@@ -339,7 +343,14 @@ async function submitEntry(event) {
     const pre = getInt("preFeedWeightG");
     const post = getInt("postFeedWeightG");
     const isMilkCat = !document.getElementById("catMilk").classList.contains("hidden");
-    const feedingType = document.querySelector(".feeding-type:checked");
+    const fedBreast = document.getElementById("fedBreast").checked;
+    const fedBottle = document.getElementById("fedBottle").checked;
+
+    if (isMilkCat && (pre !== null || post !== null) && !fedBreast && !fedBottle) {
+        errorEl.textContent = "Please select at least one feeding source (breast or bottle).";
+        errorEl.classList.remove("hidden");
+        return;
+    }
 
     if (isMilkCat && (pre !== null || post !== null) && !(pre !== null && post !== null)) {
         const pending = {
@@ -347,7 +358,8 @@ async function submitEntry(event) {
             logTime: getValue("logTime"),
             preFeedWeightG: pre,
             postFeedWeightG: post,
-            feedingType: feedingType ? feedingType.value : null,
+            fedBreast,
+            fedBottle,
         };
         savePendingFeed(pending);
         successEl.textContent = "Saved as pending — add the missing weight to complete.";
@@ -363,6 +375,23 @@ async function submitEntry(event) {
         logDate: getValue("logDate"), logTime: getValue("logTime"), dailySummary: getValue("dailySummary") || "",
         statusWeightG: getInt("statusWeightG"), preFeedWeightG: pre, postFeedWeightG: post,
         milkTransferG: milkTransfer, heightCm: null, headCm: null, measurementWeightG: getInt("measurementWeightG"),
+        fedBreast, fedBottle,
+        diaper: (() => {
+            const kakis = [...document.querySelectorAll(".quick-tag:checked")].some(cb => cb.value === "kakis pelus");
+            const pisis = [...document.querySelectorAll(".quick-tag:checked")].some(cb => cb.value === "pisis pelus");
+            if (kakis && pisis) return "both";
+            if (kakis) return "dirty";
+            if (pisis) return "wet";
+            return null;
+        })(),
+        sleepEvent: (() => {
+            const checked = [...document.querySelectorAll(".quick-tag:checked")].map(cb => cb.value);
+            if (checked.includes("ébredt")) return "woke_up";
+            if (checked.includes("elaludt") || checked.includes("cicin elaludt")) return "fell_asleep";
+            return null;
+        })(),
+        bathed: [...document.querySelectorAll(".quick-tag:checked")].some(cb => cb.value === "fürcsi"),
+        milestone: [...document.querySelectorAll(".quick-tag:checked")].some(cb => cb.value === "🎉"),
     };
     try {
         const response = await fetch("/api/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
