@@ -57,16 +57,25 @@ type GrowthPoint struct {
 	HeadCm   *float64 `json:"headCm"`
 }
 
+type ChecklistItem struct {
+	ID       int    `json:"id"`
+	ListID   int    `json:"listId"`
+	Text     string `json:"text"`
+	Checked  bool   `json:"checked"`
+	Position int    `json:"position"`
+}
+
 type Event struct {
-	ID          int     `json:"id"`
-	Title       string  `json:"title"`
-	Category    string  `json:"category"`
-	EventDate   string  `json:"eventDate"`
-	EventTime   *string `json:"eventTime"`
-	DurationMin int     `json:"durationMin"`
-	Notes       *string `json:"notes"`
-	Recurring   string  `json:"recurring"`
-	AllDay      bool    `json:"allDay"`
+	ID          int             `json:"id"`
+	Title       string          `json:"title"`
+	Category    string          `json:"category"`
+	EventDate   string          `json:"eventDate"`
+	EventTime   *string         `json:"eventTime"`
+	DurationMin int             `json:"durationMin"`
+	Notes       *string         `json:"notes"`
+	Recurring   string          `json:"recurring"`
+	AllDay      bool            `json:"allDay"`
+	Items       []ChecklistItem `json:"items,omitempty"`
 }
 
 type Summary struct {
@@ -147,6 +156,19 @@ func main() {
 	router.POST("/api/events", createEvent)
 	router.PUT("/api/events/:id", updateEvent)
 	router.DELETE("/api/events/:id", deleteEvent)
+	router.POST("/api/events/:id/items", addChecklistItem)
+	router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
+	router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
+	router.GET("/api/events/calendar.ics", getCalendar)
+	router.POST("/api/send-report", func(c *gin.Context) {
+		if err := sendWeeklyReport(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "sent"})
+	})
+
+	go scheduleWeeklyReport()
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -158,6 +180,22 @@ func main() {
 	err = router.Run(":8081")
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func scheduleWeeklyReport() {
+	for {
+		now := nowBp()
+		// next Monday 08:00
+		daysUntilMonday := (8 - int(now.Weekday())) % 7
+		if daysUntilMonday == 0 && (now.Hour() > 8 || (now.Hour() == 8 && now.Minute() > 0)) {
+			daysUntilMonday = 7
+		}
+		next := time.Date(now.Year(), now.Month(), now.Day()+daysUntilMonday, 8, 0, 0, 0, budapest())
+		time.Sleep(time.Until(next))
+		if err := sendWeeklyReport(); err != nil {
+			log.Println("weekly report error:", err)
+		}
 	}
 }
 
@@ -273,187 +311,12 @@ func getLogByDate(c *gin.Context) {
 	c.JSON(http.StatusOK, logs)
 }
 
-func getWeights(c *gin.Context) {
-	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
-	from := c.DefaultQuery("from", nowBp().AddDate(0, -1, 0).Format("2006-01-02"))
-	rows, err := db.Query(`
-		SELECT log_date, measurement_weight_g
-		FROM zili_daily_log
-		WHERE measurement_weight_g IS NOT NULL
-		  AND log_date BETWEEN $1 AND $2
-		ORDER BY log_date, id
-	`, from, to)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var data []WeightPoint
-	for rows.Next() {
-		var item WeightPoint
-		if err := rows.Scan(&item.Date, &item.Weight); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		data = append(data, item)
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func getStatusWeights(c *gin.Context) {
-	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
-	from := c.DefaultQuery("from", nowBp().AddDate(0, -1, 0).Format("2006-01-02"))
-	rows, err := db.Query(`
-		SELECT log_date, status_weight_g
-		FROM zili_daily_log
-		WHERE status_weight_g IS NOT NULL
-		  AND log_date BETWEEN $1 AND $2
-		ORDER BY log_date, id
-	`, from, to)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var data []WeightPoint
-	for rows.Next() {
-		var item WeightPoint
-		if err := rows.Scan(&item.Date, &item.Weight); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		data = append(data, item)
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func getMilkTransfer(c *gin.Context) {
-	rows, err := db.Query(`
-		SELECT log_date, milk_transfer_g
-		FROM zili_daily_log
-		WHERE milk_transfer_g IS NOT NULL
-		ORDER BY log_date, id
-	`)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var data []MilkTransferPoint
-	for rows.Next() {
-		var item MilkTransferPoint
-		if err := rows.Scan(&item.Date, &item.MilkTransfer); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		data = append(data, item)
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func getMilkConsumed(c *gin.Context) {
-	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
-	from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
-
-	rows, err := db.Query(`
-		SELECT log_date, SUM(post_feed_weight_g - pre_feed_weight_g) as milk_consumed
-		FROM zili_daily_log
-		WHERE pre_feed_weight_g IS NOT NULL
-		  AND post_feed_weight_g IS NOT NULL
-		  AND post_feed_weight_g > pre_feed_weight_g
-		  AND log_date BETWEEN $1 AND $2
-		GROUP BY log_date
-		ORDER BY log_date ASC
-	`, from, to)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var data []MilkConsumedPoint
-	for rows.Next() {
-		var item MilkConsumedPoint
-		if err := rows.Scan(&item.Date, &item.MilkConsumedG); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		data = append(data, item)
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func getGrowth(c *gin.Context) {
-	rows, err := db.Query(`
-		SELECT log_date, measurement_weight_g, height_cm, head_cm
-		FROM zili_daily_log
-		WHERE height_cm IS NOT NULL OR head_cm IS NOT NULL
-		ORDER BY log_date ASC
-	`)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var data []GrowthPoint
-	for rows.Next() {
-		var item GrowthPoint
-		var weightG sql.NullInt64
-		var heightCm, headCm sql.NullFloat64
-		if err := rows.Scan(&item.Date, &weightG, &heightCm, &headCm); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if weightG.Valid {
-			v := int(weightG.Int64)
-			item.WeightG = &v
-		}
-		if heightCm.Valid {
-			item.HeightCm = &heightCm.Float64
-		}
-		if headCm.Valid {
-			item.HeadCm = &headCm.Float64
-		}
-		data = append(data, item)
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func createGrowth(c *gin.Context) {
-	var body struct {
-		LogDate  string   `json:"logDate"`
-		WeightG  *int     `json:"weightG"`
-		HeightCm *float64 `json:"heightCm"`
-		HeadCm   *float64 `json:"headCm"`
-	}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	var id int
-	err := db.QueryRow(`
-		INSERT INTO zili_daily_log (log_date, measurement_weight_g, height_cm, head_cm, daily_summary)
-		VALUES ($1, $2, $3, $4, '')
-		RETURNING id
-	`, body.LogDate, body.WeightG, body.HeightCm, body.HeadCm).Scan(&id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, gin.H{"id": id})
-}
-
 func createLog(c *gin.Context) {
 	var entry DailyLog
 	if err := c.ShouldBindJSON(&entry); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	var id int
 	err := db.QueryRow(`
 		INSERT INTO zili_daily_log (
@@ -469,7 +332,6 @@ func createLog(c *gin.Context) {
 		entry.MilkTransferG, entry.HeightCm, entry.HeadCm, entry.MeasurementWeight,
 		entry.SleepEvent, entry.Diaper, entry.FedBreast, entry.FedBottle, entry.Bathed, entry.Milestone,
 	).Scan(&id)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -511,46 +373,183 @@ func deleteLog(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func getWeights(c *gin.Context) {
+	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+	from := c.DefaultQuery("from", nowBp().AddDate(0, -1, 0).Format("2006-01-02"))
+	rows, err := db.Query(`
+		SELECT log_date, measurement_weight_g
+		FROM zili_daily_log
+		WHERE measurement_weight_g IS NOT NULL
+		  AND log_date BETWEEN $1 AND $2
+		ORDER BY log_date, id
+	`, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	data := []WeightPoint{}
+	for rows.Next() {
+		var item WeightPoint
+		if err := rows.Scan(&item.Date, &item.Weight); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func getStatusWeights(c *gin.Context) {
+	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+	from := c.DefaultQuery("from", nowBp().AddDate(0, -1, 0).Format("2006-01-02"))
+	rows, err := db.Query(`
+		SELECT log_date, status_weight_g
+		FROM zili_daily_log
+		WHERE status_weight_g IS NOT NULL
+		  AND log_date BETWEEN $1 AND $2
+		ORDER BY log_date, id
+	`, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	data := []WeightPoint{}
+	for rows.Next() {
+		var item WeightPoint
+		if err := rows.Scan(&item.Date, &item.Weight); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func getMilkTransfer(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT log_date, milk_transfer_g
+		FROM zili_daily_log
+		WHERE milk_transfer_g IS NOT NULL
+		ORDER BY log_date, id
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	var data []MilkTransferPoint
+	for rows.Next() {
+		var item MilkTransferPoint
+		if err := rows.Scan(&item.Date, &item.MilkTransfer); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func getMilkConsumed(c *gin.Context) {
+	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+	from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
+	rows, err := db.Query(`
+		SELECT log_date, SUM(post_feed_weight_g - pre_feed_weight_g) as milk_consumed
+		FROM zili_daily_log
+		WHERE pre_feed_weight_g IS NOT NULL
+		  AND post_feed_weight_g IS NOT NULL
+		  AND post_feed_weight_g > pre_feed_weight_g
+		  AND log_date BETWEEN $1 AND $2
+		GROUP BY log_date
+		ORDER BY log_date ASC
+	`, from, to)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	data := []MilkConsumedPoint{}
+	for rows.Next() {
+		var item MilkConsumedPoint
+		if err := rows.Scan(&item.Date, &item.MilkConsumedG); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func getGrowth(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT log_date, measurement_weight_g, height_cm, head_cm
+		FROM zili_daily_log
+		WHERE height_cm IS NOT NULL OR head_cm IS NOT NULL
+		ORDER BY log_date ASC
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	var data []GrowthPoint
+	for rows.Next() {
+		var item GrowthPoint
+		var weightG sql.NullInt64
+		var heightCm, headCm sql.NullFloat64
+		if err := rows.Scan(&item.Date, &weightG, &heightCm, &headCm); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if weightG.Valid { v := int(weightG.Int64); item.WeightG = &v }
+		if heightCm.Valid { item.HeightCm = &heightCm.Float64 }
+		if headCm.Valid { item.HeadCm = &headCm.Float64 }
+		data = append(data, item)
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func createGrowth(c *gin.Context) {
+	var body struct {
+		LogDate  string   `json:"logDate"`
+		WeightG  *int     `json:"weightG"`
+		HeightCm *float64 `json:"heightCm"`
+		HeadCm   *float64 `json:"headCm"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO zili_daily_log (log_date, measurement_weight_g, height_cm, head_cm, daily_summary)
+		VALUES ($1, $2, $3, $4, '') RETURNING id
+	`, body.LogDate, body.WeightG, body.HeightCm, body.HeadCm).Scan(&id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
 func getSummary(c *gin.Context) {
 	var summary Summary
-
 	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log`).Scan(&summary.TotalLogs)
 	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE measurement_weight_g IS NOT NULL`).Scan(&summary.WeightEntries)
 	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE milk_transfer_g IS NOT NULL`).Scan(&summary.MilkEntries)
-
 	var firstWeight, latestWeight, minWeight, maxWeight sql.NullInt64
 	var averageMilk sql.NullFloat64
-
 	db.QueryRow(`SELECT measurement_weight_g FROM zili_daily_log WHERE measurement_weight_g IS NOT NULL ORDER BY log_date ASC, id ASC LIMIT 1`).Scan(&firstWeight)
 	db.QueryRow(`SELECT measurement_weight_g FROM zili_daily_log WHERE measurement_weight_g IS NOT NULL ORDER BY log_date DESC, id DESC LIMIT 1`).Scan(&latestWeight)
 	db.QueryRow(`SELECT MIN(measurement_weight_g), MAX(measurement_weight_g) FROM zili_daily_log WHERE measurement_weight_g IS NOT NULL`).Scan(&minWeight, &maxWeight)
 	db.QueryRow(`SELECT AVG(milk_transfer_g) FROM zili_daily_log WHERE milk_transfer_g IS NOT NULL`).Scan(&averageMilk)
-
-	if firstWeight.Valid {
-		v := int(firstWeight.Int64)
-		summary.FirstWeight = &v
-	}
-	if latestWeight.Valid {
-		v := int(latestWeight.Int64)
-		summary.LatestWeight = &v
-	}
-	if firstWeight.Valid && latestWeight.Valid {
-		v := int(latestWeight.Int64 - firstWeight.Int64)
-		summary.WeightGain = &v
-	}
-	if minWeight.Valid {
-		v := int(minWeight.Int64)
-		summary.MinWeight = &v
-	}
-	if maxWeight.Valid {
-		v := int(maxWeight.Int64)
-		summary.MaxWeight = &v
-	}
-	if averageMilk.Valid {
-		v := int(averageMilk.Float64 + 0.5)
-		summary.AverageMilkG = &v
-	}
-
+	if firstWeight.Valid { v := int(firstWeight.Int64); summary.FirstWeight = &v }
+	if latestWeight.Valid { v := int(latestWeight.Int64); summary.LatestWeight = &v }
+	if firstWeight.Valid && latestWeight.Valid { v := int(latestWeight.Int64 - firstWeight.Int64); summary.WeightGain = &v }
+	if minWeight.Valid { v := int(minWeight.Int64); summary.MinWeight = &v }
+	if maxWeight.Valid { v := int(maxWeight.Int64); summary.MaxWeight = &v }
+	if averageMilk.Valid { v := int(averageMilk.Float64 + 0.5); summary.AverageMilkG = &v }
 	c.JSON(http.StatusOK, summary)
 }
 
@@ -561,7 +560,6 @@ func getVitamins(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-
 	type entry struct {
 		Checked bool    `json:"checked"`
 		Date    *string `json:"date"`
@@ -576,9 +574,7 @@ func getVitamins(c *gin.Context) {
 			return
 		}
 		e := entry{Checked: checked}
-		if date.Valid {
-			e.Date = &date.String
-		}
+		if date.Valid { e.Date = &date.String }
 		result[key] = e
 	}
 	c.JSON(http.StatusOK, result)
@@ -603,6 +599,41 @@ func putVitamin(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"key": key, "checked": body.Checked})
+}
+
+func getSetting(c *gin.Context) {
+	key := c.Param("key")
+	var value string
+	err := db.QueryRow(`SELECT value FROM app_settings WHERE key = $1`, key).Scan(&value)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"value": nil})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"value": value})
+}
+
+func putSetting(c *gin.Context) {
+	key := c.Param("key")
+	var body struct {
+		Value string `json:"value"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	_, err := db.Exec(`
+		INSERT INTO app_settings (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = $2
+	`, key, body.Value)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"key": key, "value": body.Value})
 }
 
 type sleepLog struct {
@@ -667,7 +698,7 @@ func calcSleepAwake(logs []sleepLog, from, to string, now time.Time) []daySleepR
 	if sleepStart != nil {
 		addInterval(*sleepStart, now)
 	}
-	var result []daySleepResult
+	result := []daySleepResult{}
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		key := d.Format("2006-01-02")
 		dr := dayMap[key]
@@ -688,7 +719,6 @@ func calcSleepAwake(logs []sleepLog, from, to string, now time.Time) []daySleepR
 func getSleepAwake(c *gin.Context) {
 	to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
 	from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
-
 	rows, err := db.Query(`
 		SELECT log_date::text, log_time::text, sleep_event
 		FROM zili_daily_log
@@ -702,7 +732,6 @@ func getSleepAwake(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-
 	var logs []sleepLog
 	for rows.Next() {
 		var r sleepLog
@@ -724,7 +753,6 @@ func getCurrentStatus(c *gin.Context) {
 	now := nowBp()
 	today := now.Format("2006-01-02")
 	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
-
 	rows, err := db.Query(`
 		SELECT log_date::text, log_time::text, sleep_event,
 			EXTRACT(EPOCH FROM (
@@ -742,7 +770,6 @@ func getCurrentStatus(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-
 	type logRow struct {
 		Date       string
 		Time       string
@@ -757,7 +784,6 @@ func getCurrentStatus(c *gin.Context) {
 		if len(r.Time) > 5 { r.Time = r.Time[:5] }
 		logs = append(logs, r)
 	}
-
 	type entry struct{ SecondsAgo float64 }
 	var lastSleep, lastWake *entry
 	for _, l := range logs {
@@ -765,7 +791,6 @@ func getCurrentStatus(c *gin.Context) {
 		if l.SleepEvent == "fell_asleep" { lastSleep = e }
 		if l.SleepEvent == "woke_up" { lastWake = e }
 	}
-
 	fmtDur := func(seconds float64) string {
 		total := int64(seconds)
 		h := total / 3600
@@ -773,7 +798,6 @@ func getCurrentStatus(c *gin.Context) {
 		if h > 0 { return fmt.Sprintf("%dh %dm", h, m) }
 		return fmt.Sprintf("%dm", m)
 	}
-
 	isSleeping := lastSleep != nil && (lastWake == nil || lastSleep.SecondsAgo < lastWake.SecondsAgo)
 	var statusDur, statusState string
 	if isSleeping {
@@ -785,7 +809,6 @@ func getCurrentStatus(c *gin.Context) {
 	} else {
 		statusState = "sleep"
 	}
-
 	sleepLogs := make([]sleepLog, 0, len(logs))
 	for _, l := range logs {
 		var summary string
@@ -794,7 +817,6 @@ func getCurrentStatus(c *gin.Context) {
 		sleepLogs = append(sleepLogs, sleepLog{Date: l.Date, Time: l.Time, Summary: summary})
 	}
 	result := calcSleepAwake(sleepLogs, yesterday, today, nowBp())
-
 	var sleepMin, awakeMin int
 	for _, r := range result {
 		if r.Date == today {
@@ -802,48 +824,12 @@ func getCurrentStatus(c *gin.Context) {
 			awakeMin = r.AwakeMin
 		}
 	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"state":    statusState,
 		"duration": statusDur,
 		"sleepMin": sleepMin,
 		"awakeMin": awakeMin,
 	})
-}
-
-func getSetting(c *gin.Context) {
-	key := c.Param("key")
-	var value string
-	err := db.QueryRow(`SELECT value FROM app_settings WHERE key = $1`, key).Scan(&value)
-	if err == sql.ErrNoRows {
-		c.JSON(http.StatusNotFound, gin.H{"value": nil})
-		return
-	}
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"value": value})
-}
-
-func putSetting(c *gin.Context) {
-	key := c.Param("key")
-	var body struct {
-		Value string `json:"value"`
-	}
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	_, err := db.Exec(`
-		INSERT INTO app_settings (key, value) VALUES ($1, $2)
-		ON CONFLICT (key) DO UPDATE SET value = $2
-	`, key, body.Value)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"key": key, "value": body.Value})
 }
 
 func getEvents(c *gin.Context) {
@@ -858,6 +844,7 @@ func getEvents(c *gin.Context) {
 	}
 	defer rows.Close()
 	var events []Event
+	eventIdx := map[int]int{}
 	for rows.Next() {
 		var e Event
 		var eventTime, notes sql.NullString
@@ -872,7 +859,29 @@ func getEvents(c *gin.Context) {
 		}
 		if notes.Valid { e.Notes = &notes.String }
 		if len(e.EventDate) > 10 { e.EventDate = e.EventDate[:10] }
+		e.Items = []ChecklistItem{}
+		eventIdx[e.ID] = len(events)
 		events = append(events, e)
+	}
+	itemRows, err := db.Query(`SELECT id, list_id, text, checked, position FROM zili_checklist_items ORDER BY list_id, position, id`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer itemRows.Close()
+	for itemRows.Next() {
+		var item ChecklistItem
+		if err := itemRows.Scan(&item.ID, &item.ListID, &item.Text, &item.Checked, &item.Position); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if i, ok := eventIdx[item.ListID]; ok {
+			events[i].Items = append(events[i].Items, item)
+		}
+	}
+	if events == nil {
+		c.JSON(http.StatusOK, []Event{})
+		return
 	}
 	c.JSON(http.StatusOK, events)
 }
@@ -920,5 +929,127 @@ func deleteEvent(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func addChecklistItem(c *gin.Context) {
+	eventID := c.Param("id")
+	var body struct {
+		Text string `json:"text"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Text == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "text required"})
+		return
+	}
+	var pos int
+	db.QueryRow(`SELECT COALESCE(MAX(position), -1) + 1 FROM zili_checklist_items WHERE list_id = $1`, eventID).Scan(&pos)
+	var id int
+	err := db.QueryRow(`INSERT INTO zili_checklist_items (list_id, text, position) VALUES ($1, $2, $3) RETURNING id`,
+		eventID, body.Text, pos).Scan(&id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, ChecklistItem{ID: id, Text: body.Text, Checked: false, Position: pos})
+}
+
+func toggleChecklistItem(c *gin.Context) {
+	itemID := c.Param("itemId")
+	var body struct {
+		Checked bool `json:"checked"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	_, err := db.Exec(`UPDATE zili_checklist_items SET checked = $1 WHERE id = $2`, body.Checked, itemID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": itemID, "checked": body.Checked})
+}
+
+func deleteChecklistItem(c *gin.Context) {
+	itemID := c.Param("itemId")
+	_, err := db.Exec(`DELETE FROM zili_checklist_items WHERE id = $1`, itemID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func getCalendar(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT id, title, category, event_date::text, event_time::text, duration_min, notes, recurring, all_day
+		FROM zili_events
+		ORDER BY event_date ASC
+	`)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "error fetching events")
+		return
+	}
+	defer rows.Close()
+
+	now := time.Now().UTC().Format("20060102T150405Z")
+	var sb strings.Builder
+	sb.WriteString("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Zili//Zili Dashboard//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n")
+
+	for rows.Next() {
+		var e Event
+		var eventTime, notes sql.NullString
+		if err := rows.Scan(&e.ID, &e.Title, &e.Category, &e.EventDate, &eventTime, &e.DurationMin, &notes, &e.Recurring, &e.AllDay); err != nil {
+			continue
+		}
+		if len(e.EventDate) > 10 { e.EventDate = e.EventDate[:10] }
+		if eventTime.Valid && len(eventTime.String) >= 5 {
+			v := eventTime.String[:5]
+			e.EventTime = &v
+		}
+		if notes.Valid { e.Notes = &notes.String }
+
+		dateStr := strings.ReplaceAll(e.EventDate, "-", "")
+		uid := fmt.Sprintf("%d@zili", e.ID)
+
+		sb.WriteString("BEGIN:VEVENT\r\n")
+		sb.WriteString("UID:" + uid + "\r\n")
+		sb.WriteString("DTSTAMP:" + now + "\r\n")
+		sb.WriteString("SUMMARY:" + e.Title + "\r\n")
+
+		if e.AllDay {
+			sb.WriteString("DTSTART;VALUE=DATE:" + dateStr + "\r\n")
+			sb.WriteString("DTEND;VALUE=DATE:" + dateStr + "\r\n")
+		} else if e.EventTime != nil {
+			timeStr := strings.ReplaceAll(*e.EventTime, ":", "")
+			sb.WriteString("DTSTART;TZID=Europe/Budapest:" + dateStr + "T" + timeStr + "00\r\n")
+			end := fmt.Sprintf("DURATION:PT%dM\r\n", e.DurationMin)
+			sb.WriteString(end)
+		} else {
+			sb.WriteString("DTSTART;VALUE=DATE:" + dateStr + "\r\n")
+			sb.WriteString("DTEND;VALUE=DATE:" + dateStr + "\r\n")
+		}
+
+		if e.Notes != nil && *e.Notes != "" {
+			sb.WriteString("DESCRIPTION:" + *e.Notes + "\r\n")
+		}
+
+		switch e.Recurring {
+		case "daily":
+			sb.WriteString("RRULE:FREQ=DAILY\r\n")
+		case "weekly":
+			sb.WriteString("RRULE:FREQ=WEEKLY\r\n")
+		case "monthly":
+			sb.WriteString("RRULE:FREQ=MONTHLY\r\n")
+		case "yearly":
+			sb.WriteString("RRULE:FREQ=YEARLY\r\n")
+		}
+
+		sb.WriteString("END:VEVENT\r\n")
+	}
+
+	sb.WriteString("END:VCALENDAR\r\n")
+	c.Header("Content-Type", "text/calendar; charset=utf-8")
+	c.Header("Content-Disposition", "inline; filename=zili.ics")
+	c.String(http.StatusOK, sb.String())
 }
 

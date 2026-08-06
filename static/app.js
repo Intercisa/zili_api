@@ -55,12 +55,8 @@ document.addEventListener("DOMContentLoaded", () => {
     loadBirthDate();
     renderPendingBanner();
 
-    document.getElementById("pendingFeedContinue").addEventListener("click", () => {
-        openForm(true);
-    });
-    document.getElementById("pendingFeedDiscard").addEventListener("click", () => {
-        clearPendingFeed();
-    });
+    document.getElementById("pendingFeedContinue").addEventListener("click", () => { openForm(true); });
+    document.getElementById("pendingFeedDiscard").addEventListener("click", () => { clearPendingFeed(); });
 
     const tableWrapper = document.querySelector(".table-wrapper");
     tableWrapper.addEventListener("scroll", () => {
@@ -72,8 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
             const target = btn.dataset.tab;
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-            document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+            const section = btn.closest(".chart-card");
+            section.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            section.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
             btn.classList.add("active");
             document.getElementById(target).classList.remove("hidden");
             if (target === "statusWeightTab" && !statusWeightChart) loadStatusWeightChart();
@@ -144,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
     attachLongPress(statusTile, async () => {
         const now = new Date();
         const logDate = now.toISOString().split("T")[0];
-        const logTime = `${String(now.getHours()).padStart(2,"00")}:${String(now.getMinutes()).padStart(2,"00")}`;
+        const logTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
         const isSleep = statusTile.dataset.currentState === "sleep";
         const sleepEvent = isSleep ? "woke_up" : "fell_asleep";
         const dailySummary = isSleep ? "ébredt" : "elaludt";
@@ -345,29 +342,19 @@ async function submitEntry(event) {
     const isMilkCat = !document.getElementById("catMilk").classList.contains("hidden");
     const fedBreast = document.getElementById("fedBreast").checked;
     const fedBottle = document.getElementById("fedBottle").checked;
-
     if (isMilkCat && (pre !== null || post !== null) && !fedBreast && !fedBottle) {
         errorEl.textContent = "Please select at least one feeding source (breast or bottle).";
         errorEl.classList.remove("hidden");
         return;
     }
-
     if (isMilkCat && (pre !== null || post !== null) && !(pre !== null && post !== null)) {
-        const pending = {
-            logDate: getValue("logDate"),
-            logTime: getValue("logTime"),
-            preFeedWeightG: pre,
-            postFeedWeightG: post,
-            fedBreast,
-            fedBottle,
-        };
+        const pending = { logDate: getValue("logDate"), logTime: getValue("logTime"), preFeedWeightG: pre, postFeedWeightG: post, fedBreast, fedBottle };
         savePendingFeed(pending);
         successEl.textContent = "Saved as pending — add the missing weight to complete.";
         successEl.classList.remove("hidden");
         setTimeout(() => closeForm(), 1500);
         return;
     }
-
     const submitBtn = event.target.querySelector("button[type=submit]");
     submitBtn.disabled = true; submitBtn.textContent = "Saving...";
     const milkTransfer = (pre !== null && post !== null && post > pre) ? post - pre : null;
@@ -447,6 +434,7 @@ async function submitEdit(event) {
     } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
     finally { submitBtn.disabled = false; submitBtn.textContent = "Save Changes"; }
 }
+
 async function loadDashboard() {
     await Promise.all([loadSummary(), loadWeightChart(), loadMilkConsumedChart(), loadLogs()]);
 }
@@ -501,7 +489,6 @@ function attachLongPress(el, onTrigger, duration = 800) {
     }
     el.classList.add("long-press-target");
     let timer = null;
-
     function start(e) {
         e.preventDefault();
         bar.classList.add("active");
@@ -515,7 +502,6 @@ function attachLongPress(el, onTrigger, duration = 800) {
         });
         timer = setTimeout(() => { cancel(false); onTrigger(); }, duration);
     }
-
     function cancel(retract = true) {
         clearTimeout(timer);
         if (retract) {
@@ -527,7 +513,6 @@ function attachLongPress(el, onTrigger, duration = 800) {
             bar.style.width = "0%";
         }
     }
-
     el.addEventListener("mousedown", start);
     el.addEventListener("touchstart", start, { passive: false });
     el.addEventListener("mouseup", () => cancel());
@@ -539,7 +524,7 @@ function attachLongPress(el, onTrigger, duration = 800) {
 async function loadWeightChart() {
     const from = document.getElementById("weightFromDate").value;
     const to = document.getElementById("weightToDate").value;
-    const data = await fetch(`/api/weights?from=${from}&to=${to}`).then(r => r.json());
+    const data = await fetch(`/api/weights?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("weightChart");
     if (weightChart) weightChart.destroy();
     weightChart = new Chart(ctx, {
@@ -547,12 +532,13 @@ async function loadWeightChart() {
         data: { labels: data.map(i => i.date.substring(0, 10)), datasets: [{ label: "Weight (g)", data: data.map(i => i.weight), borderColor: "#7b174e", backgroundColor: "rgba(235, 63, 126, 0.88)", borderWidth: 3, pointRadius: 4, pointHoverRadius: 7, tension: 0.3, fill: true }] },
         options: { responsive: true, plugins: { datalabels: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } }, scales: { y: { title: { display: true, text: "Weight in grams" } }, x: { title: { display: true, text: "Date" } } } }
     });
+    setupChartScroll("weightChart", "weightFromDate", "weightToDate", loadWeightChart);
 }
 
 async function loadStatusWeightChart() {
     const from = document.getElementById("statusWeightFromDate").value;
     const to = document.getElementById("statusWeightToDate").value;
-    const data = await fetch(`/api/status-weights?from=${from}&to=${to}`).then(r => r.json());
+    const data = await fetch(`/api/status-weights?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("statusWeightChart");
     if (statusWeightChart) statusWeightChart.destroy();
     statusWeightChart = new Chart(ctx, {
@@ -560,12 +546,13 @@ async function loadStatusWeightChart() {
         data: { labels: data.map(i => i.date.substring(0, 10)), datasets: [{ label: "Status weight (g)", data: data.map(i => i.weight), borderColor: "#f472b6", backgroundColor: "rgba(244, 114, 182, 0.15)", borderWidth: 3, pointRadius: 4, pointHoverRadius: 7, tension: 0.3, fill: true }] },
         options: { responsive: true, plugins: { datalabels: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } }, scales: { y: { title: { display: true, text: "Weight in grams" } }, x: { title: { display: true, text: "Date" } } } }
     });
+    setupChartScroll("statusWeightChart", "statusWeightFromDate", "statusWeightToDate", loadStatusWeightChart);
 }
 
 async function loadSleepAwakeChart() {
     const from = document.getElementById("sleepFromDate").value;
     const to = document.getElementById("sleepToDate").value;
-    const data = await fetch(`/api/sleep-awake?from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+    const data = await fetch(`/api/sleep-awake?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("sleepAwakeChart");
     if (sleepAwakeChart) sleepAwakeChart.destroy();
     sleepAwakeChart = new Chart(ctx, {
@@ -583,12 +570,13 @@ async function loadSleepAwakeChart() {
             scales: { x: { stacked: true, title: { display: true, text: "Date" } }, y: { stacked: true, title: { display: true, text: "Hours" } } }
         }
     });
+    setupChartScroll("sleepAwakeChart", "sleepFromDate", "sleepToDate", loadSleepAwakeChart);
 }
 
 async function loadMilkConsumedChart() {
     const from = document.getElementById("milkFromDate").value;
     const to = document.getElementById("milkToDate").value;
-    const data = await fetch(`/api/milk-consumed?from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+    const data = await fetch(`/api/milk-consumed?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("milkConsumedChart");
     if (milkConsumedChart) milkConsumedChart.destroy();
     milkConsumedChart = new Chart(ctx, {
@@ -596,10 +584,69 @@ async function loadMilkConsumedChart() {
         data: { labels: data.map(i => i.date.substring(0, 10)), datasets: [{ label: "Milk consumed (g)", data: data.map(i => i.milkConsumedG), backgroundColor: "#f9a8d4", borderColor: "#db2777", borderWidth: 1 }] },
         options: {
             responsive: true,
-            plugins: { datalabels: { anchor: "center", align: "center", color: "#9d174d", font: { weight: "700", size: 14 }, formatter: v => `${v} g` }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
+            plugins: { datalabels: { anchor: "center", align: "center", color: "#9d174d", font: { weight: "700", size: 14 }, rotation: () => window.innerWidth < 600 ? -90 : 0, formatter: v => `${v} g` }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
             scales: { y: { beginAtZero: true, title: { display: true, text: "Milk consumed in grams" } }, x: { title: { display: true, text: "Date" } } }
         }
     });
+    setupChartScroll("milkConsumedChart", "milkFromDate", "milkToDate", loadMilkConsumedChart);
+}
+
+function setupChartScroll(canvasId, fromId, toId, reloadFn) {
+    const el = document.getElementById(canvasId);
+    if (el._scrollAbort) el._scrollAbort.abort();
+    const controller = new AbortController();
+    el._scrollAbort = controller;
+    const signal = controller.signal;
+
+    let touchStartX = null;
+    let scrollCooldown = false;
+
+    function shift(forward) {
+        if (scrollCooldown) return;
+        scrollCooldown = true;
+        setTimeout(() => scrollCooldown = false, 300);
+
+        const fmt = d => d.toISOString().split("T")[0];
+        const todayStr = fmt(new Date());
+        const from = new Date(document.getElementById(fromId).value + "T12:00:00");
+        const to = new Date(document.getElementById(toId).value + "T12:00:00");
+        const rangeDays = Math.round((to - from) / 86400000);
+        const step = Math.max(1, Math.round(rangeDays / 3));
+        const delta = forward ? step : -step;
+
+        let newTo = new Date(to); newTo.setDate(newTo.getDate() + delta);
+        let newFrom = new Date(newTo); newFrom.setDate(newTo.getDate() - rangeDays);
+
+        if (forward && fmt(newTo) > todayStr) {
+            newTo = new Date(todayStr + "T12:00:00");
+            newFrom = new Date(newTo); newFrom.setDate(newTo.getDate() - rangeDays);
+        }
+
+        if (!forward && fmt(newFrom) < "2020-01-01") {
+            newFrom = new Date("2020-01-01T12:00:00");
+            newTo = new Date(newFrom); newTo.setDate(newFrom.getDate() + rangeDays);
+        }
+
+        const currentFrom = document.getElementById(fromId).value;
+        const currentTo = document.getElementById(toId).value;
+        if (fmt(newFrom) === currentFrom && fmt(newTo) === currentTo) return;
+        document.getElementById(fromId).value = fmt(newFrom);
+        document.getElementById(toId).value = fmt(newTo);
+        reloadFn();
+    }
+
+    el.addEventListener("wheel", e => {
+        e.preventDefault();
+        shift(e.deltaX > 0 || e.deltaY > 0);
+    }, { passive: false, signal });
+
+    el.addEventListener("touchstart", e => { touchStartX = e.touches[0].clientX; }, { passive: true, signal });
+    el.addEventListener("touchend", e => {
+        if (touchStartX === null) return;
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) shift(diff > 0);
+        touchStartX = null;
+    }, { passive: true, signal });
 }
 
 function appendLogsToTable(items) {
@@ -689,6 +736,7 @@ const EVENT_CATEGORIES = {
     merfoldko:   { icon: "🎉", label: "Mérföldkő",    color: "#fdf4ff", border: "#e879f9" },
     nevnap:      { icon: "🌸", label: "Névnap",        color: "#fff1f2", border: "#fda4af" },
     szuletesnap: { icon: "🎂", label: "Születésnap",   color: "#fff7ed", border: "#fdba74" },
+    lista:       { icon: "🛒", label: "Lista",         color: "#f0fdf4", border: "#6ee7b7" },
     egyeb:       { icon: "📅", label: "Egyéb",         color: "#f8fafc", border: "#cbd5e1" },
 };
 
@@ -732,9 +780,7 @@ function openEventForm(event = null) {
     document.getElementById("eventAllDay").addEventListener("change", e => {
         document.getElementById("eventTime").disabled = e.target.checked;
         document.getElementById("eventDuration").disabled = e.target.checked;
-        if (e.target.checked) {
-            document.getElementById("eventTime").value = "";
-        }
+        if (e.target.checked) document.getElementById("eventTime").value = "";
     });
 }
 
@@ -779,38 +825,34 @@ async function loadEvents() {
 
 function renderEvents() {
     const now = new Date();
-    const thisYear = now.getFullYear();
-
-    // expand recurring events
     const expanded = [];
-    const baseEvents = activeEventFilter ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
+    const baseEvents = activeEventFilter && activeEventFilter !== "__archived" ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
     const oneYearOut = new Date(now); oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
     baseEvents.forEach(e => {
         if (!e.recurring || e.recurring === "none") { expanded.push(e); return; }
         const origin = new Date(e.eventDate);
         let cur = new Date(origin);
-        // go back to find first occurrence before now if needed
         while (cur > now) {
-            if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
+            if (e.recurring === "daily") cur.setDate(cur.getDate() - 1);
+            else if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
             else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() - 1);
             else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() - 1);
         }
         while (cur <= oneYearOut) {
             const dateStr = cur.toISOString().split("T")[0];
             expanded.push({ ...e, eventDate: dateStr });
-            if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
+            if (e.recurring === "daily") cur.setDate(cur.getDate() + 1);
+            else if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
             else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() + 1);
             else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() + 1);
         }
     });
-    // for recurring events keep only the most relevant occurrence per id
     const byId = new Map();
     expanded.forEach(e => {
         const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
         const existing = byId.get(e.id);
         if (!existing) { byId.set(e.id, e); return; }
         const existingStart = new Date(`${existing.eventDate}T${existing.eventTime || "00:00"}`);
-        // prefer upcoming over past; among same side prefer closest to now
         const eIsFuture = start >= now;
         const exIsFuture = existingStart >= now;
         if (eIsFuture && !exIsFuture) { byId.set(e.id, e); return; }
@@ -819,16 +861,12 @@ function renderEvents() {
         if (!eIsFuture && !exIsFuture && start > existingStart) { byId.set(e.id, e); }
     });
     const events = [...byId.values()].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
-
     const ongoing = events.filter(e => {
         const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
         const end = new Date(start.getTime() + (e.allDay ? 86400000 : e.durationMin * 60000));
         return start <= now && now <= end;
     });
-    const upcoming = events.filter(e => {
-        const start = new Date(`${e.eventDate}T${e.eventTime || "00:00"}`);
-        return start > now;
-    });
+    const upcoming = events.filter(e => new Date(`${e.eventDate}T${e.eventTime || "00:00"}`) > now);
     const ongoingIds = new Set(ongoing.map(e => e.id));
     const upcomingIds = new Set(upcoming.map(e => e.id));
     const past = events.filter(e => {
@@ -836,27 +874,29 @@ function renderEvents() {
         const end = new Date(start.getTime() + (e.allDay ? 86400000 : e.durationMin * 60000));
         return end < now && !ongoingIds.has(e.id) && !upcomingIds.has(e.id);
     });
-
-    const ongoingEl = document.getElementById("eventsOngoing");
-    const upcomingEl = document.getElementById("eventsUpcoming");
-    const pastEl = document.getElementById("eventsPast");
-    const allEl = document.getElementById("eventsAll");
-
-    ongoingEl.innerHTML = ongoing.length ? `<div class="events-section-label">🔴 Folyamatban</div>` + ongoing.map(e => eventCard(e, "ongoing")).join("") : "";
-    upcomingEl.innerHTML = upcoming.length ? `<div class="events-section-label">⏳ Közelgő</div>` + upcoming.slice(0, 1).map(e => eventCard(e, "upcoming")).join("") : "";
-    pastEl.innerHTML = past.length ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).reverse().map(e => eventCard(e, "past")).join("") : "";
-
+    document.getElementById("eventsOngoing").innerHTML = ongoing.length ? `<div class="events-section-label">🔴 Folyamatban</div>` + ongoing.map(e => eventCard(e, "ongoing")).join("") : "";
+    document.getElementById("eventsUpcoming").innerHTML = upcoming.length ? `<div class="events-section-label">⏳ Közelgő</div>` + upcoming.slice(0, 1).map(e => eventCard(e, "upcoming")).join("") : "";
     const prominentKeys = new Set([
         ...ongoing.map(e => `${e.id}-${e.eventDate}`),
         ...upcoming.slice(0, 1).map(e => `${e.id}-${e.eventDate}`),
-        ...past.slice(-2).map(e => `${e.id}-${e.eventDate}`),
     ]);
     const rest = events.filter(e => !prominentKeys.has(`${e.id}-${e.eventDate}`));
-
+    const restPast = rest.filter(e => past.find(p => p.id === e.id && p.eventDate === e.eventDate));
+    const restFuture = rest.filter(e => !restPast.find(p => p.id === e.id && p.eventDate === e.eventDate));
     renderEventFilters();
-    allEl.innerHTML = rest.length
-        ? `<div class="events-section-label">📋 Többi</div>` + [...rest].reverse().map(e => eventCard(e, "all")).join("")
-        : "";
+    if (activeEventFilter === "__archived") {
+        document.getElementById("eventsPast").innerHTML = "";
+        document.getElementById("eventsAll").innerHTML = past.length
+            ? `<div class="events-section-label">🗄️ Archív</div>` + [...past].reverse().map(e => eventCard(e, "past")).join("")
+            : `<div class="events-section-label">Nincs archívált esemény</div>`;
+    } else {
+        document.getElementById("eventsPast").innerHTML = past.length
+            ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).map(e => eventCard(e, "past")).join("")
+            : "";
+        document.getElementById("eventsAll").innerHTML = restFuture.length
+            ? `<div class="events-section-label">📋 Többi</div>` + [...restFuture].reverse().map(e => eventCard(e, "all")).join("")
+            : "";
+    }
 }
 
 function eventCard(e, context) {
@@ -864,12 +904,26 @@ function eventCard(e, context) {
     const timeStr = e.allDay ? "Egész napos" : (e.eventTime ? e.eventTime.substring(0,5) : "");
     const recurStr = e.recurring && e.recurring !== "none" ? ` · 🔄 ${e.recurring}` : "";
     const prominent = context === "ongoing" || context === "upcoming";
-    return `<div class="event-card ${prominent ? "event-card--prominent" : ""}" style="background:${cat.color};border-color:${cat.border}">
+    const isPast = context === "past" || (context === "all" && new Date(`${e.eventDate}T${e.eventTime || "00:00"}`) < new Date());
+    const itemsHtml = e.category === "lista" && e.items && e.items.length > 0
+        ? `<ul class="checklist-items">${e.items.map(item =>
+            `<li class="checklist-item ${item.checked ? "checked" : ""}">
+                <label><input type="checkbox" ${item.checked ? "checked" : ""} onchange="toggleEventItem(${item.id}, this.checked, ${e.id})" /><span>${item.text}</span></label>
+                <button class="row-btn" onclick="deleteEventItem(${item.id}, ${e.id})">🗑️</button>
+            </li>`).join("")}</ul>` : "";
+    const addItemHtml = e.category === "lista"
+        ? `<div class="checklist-add-item">
+            <input class="checklist-new-input" type="text" placeholder="Add item..." id="newEventItem-${e.id}" onkeydown="if(event.key==='Enter'){addEventItem(${e.id});}" />
+            <button class="btn-secondary" onclick="addEventItem(${e.id})">Add</button>
+           </div>` : "";
+    return `<div class="event-card ${prominent ? "event-card--prominent" : ""} ${isPast ? "event-card--past" : ""}" style="background:${cat.color};border-color:${cat.border}">
         <div class="event-card-icon">${cat.icon}</div>
         <div class="event-card-body">
             <div class="event-card-title">${e.title}</div>
             <div class="event-card-meta">${e.eventDate}${timeStr ? " · " + timeStr : ""}${e.allDay ? "" : " · " + e.durationMin + " min"} · ${cat.label}${recurStr}</div>
             ${e.notes ? `<div class="event-card-notes">${e.notes}</div>` : ""}
+            ${itemsHtml}
+            ${addItemHtml}
         </div>
         <div class="event-card-actions">
             <button class="row-btn" onclick="openEventForm(${JSON.stringify(e).split('"').join('&quot;')})">✏️</button>
@@ -885,7 +939,8 @@ function renderEventFilters() {
         cats.map(c => {
             const cat = EVENT_CATEGORIES[c] || EVENT_CATEGORIES.egyeb;
             return `<button class="event-filter-btn ${activeEventFilter === c ? "active" : ""}" onclick="setEventFilter('${c}')">${cat.icon} ${cat.label}</button>`;
-        }).join("");
+        }).join("") +
+        `<button class="event-filter-btn ${activeEventFilter === "__archived" ? "active" : ""}" onclick="setEventFilter('__archived')">🗄️ Archív</button>`;
 }
 
 function setEventFilter(cat) {
@@ -900,3 +955,39 @@ async function deleteEvent(id) {
     renderEvents();
 }
 
+async function addEventItem(eventId) {
+    const input = document.getElementById(`newEventItem-${eventId}`);
+    const text = input.value.trim();
+    if (!text) return;
+    const item = await fetch(`/api/events/${eventId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+    }).then(r => r.json());
+    const ev = allEvents.find(e => e.id === eventId);
+    if (ev) { if (!ev.items) ev.items = []; ev.items.push(item); }
+    renderEvents();
+    const newInput = document.getElementById(`newEventItem-${eventId}`);
+    if (newInput) newInput.focus();
+}
+
+async function toggleEventItem(itemId, checked, eventId) {
+    await fetch(`/api/checklist-items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked }),
+    });
+    const ev = allEvents.find(e => e.id === eventId);
+    if (ev && ev.items) {
+        const item = ev.items.find(i => i.id === itemId);
+        if (item) item.checked = checked;
+    }
+    renderEvents();
+}
+
+async function deleteEventItem(itemId, eventId) {
+    await fetch(`/api/checklist-items/${itemId}`, { method: "DELETE" });
+    const ev = allEvents.find(e => e.id === eventId);
+    if (ev && ev.items) ev.items = ev.items.filter(i => i.id !== itemId);
+    renderEvents();
+}
