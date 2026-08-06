@@ -159,6 +159,7 @@ func main() {
 	router.POST("/api/events/:id/items", addChecklistItem)
 	router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
 	router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
+	router.GET("/api/events/calendar.ics", getCalendar)
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -951,5 +952,79 @@ func deleteChecklistItem(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func getCalendar(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT id, title, category, event_date::text, event_time::text, duration_min, notes, recurring, all_day
+		FROM zili_events
+		ORDER BY event_date ASC
+	`)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "error fetching events")
+		return
+	}
+	defer rows.Close()
+
+	now := time.Now().UTC().Format("20060102T150405Z")
+	var sb strings.Builder
+	sb.WriteString("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Zili//Zili Dashboard//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n")
+
+	for rows.Next() {
+		var e Event
+		var eventTime, notes sql.NullString
+		if err := rows.Scan(&e.ID, &e.Title, &e.Category, &e.EventDate, &eventTime, &e.DurationMin, &notes, &e.Recurring, &e.AllDay); err != nil {
+			continue
+		}
+		if len(e.EventDate) > 10 { e.EventDate = e.EventDate[:10] }
+		if eventTime.Valid && len(eventTime.String) >= 5 {
+			v := eventTime.String[:5]
+			e.EventTime = &v
+		}
+		if notes.Valid { e.Notes = &notes.String }
+
+		dateStr := strings.ReplaceAll(e.EventDate, "-", "")
+		uid := fmt.Sprintf("%d@zili", e.ID)
+
+		sb.WriteString("BEGIN:VEVENT\r\n")
+		sb.WriteString("UID:" + uid + "\r\n")
+		sb.WriteString("DTSTAMP:" + now + "\r\n")
+		sb.WriteString("SUMMARY:" + e.Title + "\r\n")
+
+		if e.AllDay {
+			sb.WriteString("DTSTART;VALUE=DATE:" + dateStr + "\r\n")
+			sb.WriteString("DTEND;VALUE=DATE:" + dateStr + "\r\n")
+		} else if e.EventTime != nil {
+			timeStr := strings.ReplaceAll(*e.EventTime, ":", "")
+			sb.WriteString("DTSTART;TZID=Europe/Budapest:" + dateStr + "T" + timeStr + "00\r\n")
+			end := fmt.Sprintf("DURATION:PT%dM\r\n", e.DurationMin)
+			sb.WriteString(end)
+		} else {
+			sb.WriteString("DTSTART;VALUE=DATE:" + dateStr + "\r\n")
+			sb.WriteString("DTEND;VALUE=DATE:" + dateStr + "\r\n")
+		}
+
+		if e.Notes != nil && *e.Notes != "" {
+			sb.WriteString("DESCRIPTION:" + *e.Notes + "\r\n")
+		}
+
+		switch e.Recurring {
+		case "daily":
+			sb.WriteString("RRULE:FREQ=DAILY\r\n")
+		case "weekly":
+			sb.WriteString("RRULE:FREQ=WEEKLY\r\n")
+		case "monthly":
+			sb.WriteString("RRULE:FREQ=MONTHLY\r\n")
+		case "yearly":
+			sb.WriteString("RRULE:FREQ=YEARLY\r\n")
+		}
+
+		sb.WriteString("END:VEVENT\r\n")
+	}
+
+	sb.WriteString("END:VCALENDAR\r\n")
+	c.Header("Content-Type", "text/calendar; charset=utf-8")
+	c.Header("Content-Disposition", "inline; filename=zili.ics")
+	c.String(http.StatusOK, sb.String())
 }
 

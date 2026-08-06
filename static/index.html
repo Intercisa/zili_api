@@ -183,6 +183,20 @@
         </div>
         <form id="eventForm" class="entry-form" autocomplete="off">
             <input type="hidden" id="eventId" />
+            <div class="form-group full-width">
+                <label>Category</label>
+                <div class="event-category-picker">
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="orvos" required> <span>🩺 Orvos</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="oltas"> <span>💉 Oltás</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="gyogyszer"> <span>💊 Gyógyszer</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="meres"> <span>⚖️ Mérés</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="merfoldko"> <span>🎉 Mérföldkő</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="nevnap"> <span>🌸 Névnap</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="szuletesnap"> <span>🎂 Születésnap</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="egyeb"> <span>📅 Egyéb</span></label>
+                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="lista"> <span>🛒 Lista</span></label>
+                </div>
+            </div>
             <div class="form-grid">
                 <div class="form-group">
                     <label for="eventDate">Date <span class="required">*</span></label>
@@ -204,6 +218,7 @@
                     <label for="eventRecurring">Ismétlődés</label>
                     <select id="eventRecurring">
                         <option value="none">Nem ismétlődik</option>
+                        <option value="daily">Napi</option>
                         <option value="weekly">Heti</option>
                         <option value="monthly">Havi</option>
                         <option value="yearly">Éves</option>
@@ -214,20 +229,6 @@
                         <input type="checkbox" id="eventAllDay" />
                         <span>Egész napos</span>
                     </label>
-                </div>
-            </div>
-            <div class="form-group full-width">
-                <label>Category</label>
-                <div class="event-category-picker">
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="orvos" required> <span>🩺 Orvos</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="oltas"> <span>💉 Oltás</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="gyogyszer"> <span>💊 Gyógyszer</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="meres"> <span>⚖️ Mérés</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="merfoldko"> <span>🎉 Mérföldkő</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="nevnap"> <span>🌸 Névnap</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="szuletesnap"> <span>🎂 Születésnap</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="egyeb"> <span>📅 Egyéb</span></label>
-                    <label class="event-cat-option"><input type="radio" name="eventCategory" value="lista"> <span>🛒 Lista</span></label>
                 </div>
             </div>
             <div class="form-group full-width">
@@ -315,9 +316,9 @@
             <button id="openEventFormButton" onclick="openEventForm()">📅 Add Event</button>
             <div id="eventsOngoing"></div>
             <div id="eventsUpcoming"></div>
-            <div id="eventsPast"></div>
             <div class="event-filter-bar" id="eventFilterBar"></div>
             <div id="eventsAll"></div>
+            <div id="eventsPast"></div>
         </div>
     </section>
 

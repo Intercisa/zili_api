@@ -68,8 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
             const target = btn.dataset.tab;
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-            document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+            const section = btn.closest(".chart-card");
+            section.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            section.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
             btn.classList.add("active");
             document.getElementById(target).classList.remove("hidden");
             if (target === "statusWeightTab" && !statusWeightChart) loadStatusWeightChart();
@@ -763,21 +764,23 @@ async function loadEvents() {
 function renderEvents() {
     const now = new Date();
     const expanded = [];
-    const baseEvents = activeEventFilter ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
+    const baseEvents = activeEventFilter && activeEventFilter !== "__archived" ? allEvents.filter(e => e.category === activeEventFilter) : allEvents;
     const oneYearOut = new Date(now); oneYearOut.setFullYear(oneYearOut.getFullYear() + 1);
     baseEvents.forEach(e => {
         if (!e.recurring || e.recurring === "none") { expanded.push(e); return; }
         const origin = new Date(e.eventDate);
         let cur = new Date(origin);
         while (cur > now) {
-            if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
+            if (e.recurring === "daily") cur.setDate(cur.getDate() - 1);
+            else if (e.recurring === "weekly") cur.setDate(cur.getDate() - 7);
             else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() - 1);
             else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() - 1);
         }
         while (cur <= oneYearOut) {
             const dateStr = cur.toISOString().split("T")[0];
             expanded.push({ ...e, eventDate: dateStr });
-            if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
+            if (e.recurring === "daily") cur.setDate(cur.getDate() + 1);
+            else if (e.recurring === "weekly") cur.setDate(cur.getDate() + 7);
             else if (e.recurring === "monthly") cur.setMonth(cur.getMonth() + 1);
             else if (e.recurring === "yearly") cur.setFullYear(cur.getFullYear() + 1);
         }
@@ -811,17 +814,27 @@ function renderEvents() {
     });
     document.getElementById("eventsOngoing").innerHTML = ongoing.length ? `<div class="events-section-label">🔴 Folyamatban</div>` + ongoing.map(e => eventCard(e, "ongoing")).join("") : "";
     document.getElementById("eventsUpcoming").innerHTML = upcoming.length ? `<div class="events-section-label">⏳ Közelgő</div>` + upcoming.slice(0, 1).map(e => eventCard(e, "upcoming")).join("") : "";
-    document.getElementById("eventsPast").innerHTML = past.length ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).reverse().map(e => eventCard(e, "past")).join("") : "";
     const prominentKeys = new Set([
         ...ongoing.map(e => `${e.id}-${e.eventDate}`),
         ...upcoming.slice(0, 1).map(e => `${e.id}-${e.eventDate}`),
-        ...past.slice(-2).map(e => `${e.id}-${e.eventDate}`),
     ]);
     const rest = events.filter(e => !prominentKeys.has(`${e.id}-${e.eventDate}`));
+    const restPast = rest.filter(e => past.find(p => p.id === e.id && p.eventDate === e.eventDate));
+    const restFuture = rest.filter(e => !restPast.find(p => p.id === e.id && p.eventDate === e.eventDate));
     renderEventFilters();
-    document.getElementById("eventsAll").innerHTML = rest.length
-        ? `<div class="events-section-label">📋 Többi</div>` + [...rest].reverse().map(e => eventCard(e, "all")).join("")
-        : "";
+    if (activeEventFilter === "__archived") {
+        document.getElementById("eventsPast").innerHTML = "";
+        document.getElementById("eventsAll").innerHTML = past.length
+            ? `<div class="events-section-label">🗄️ Archív</div>` + [...past].reverse().map(e => eventCard(e, "past")).join("")
+            : `<div class="events-section-label">Nincs archívált esemény</div>`;
+    } else {
+        document.getElementById("eventsPast").innerHTML = past.length
+            ? `<div class="events-section-label">✅ Legutóbbi</div>` + past.slice(-2).map(e => eventCard(e, "past")).join("")
+            : "";
+        document.getElementById("eventsAll").innerHTML = restFuture.length
+            ? `<div class="events-section-label">📋 Többi</div>` + [...restFuture].reverse().map(e => eventCard(e, "all")).join("")
+            : "";
+    }
 }
 
 function eventCard(e, context) {
@@ -829,6 +842,7 @@ function eventCard(e, context) {
     const timeStr = e.allDay ? "Egész napos" : (e.eventTime ? e.eventTime.substring(0,5) : "");
     const recurStr = e.recurring && e.recurring !== "none" ? ` · 🔄 ${e.recurring}` : "";
     const prominent = context === "ongoing" || context === "upcoming";
+    const isPast = context === "past" || (context === "all" && new Date(`${e.eventDate}T${e.eventTime || "00:00"}`) < new Date());
     const itemsHtml = e.category === "lista" && e.items && e.items.length > 0
         ? `<ul class="checklist-items">${e.items.map(item =>
             `<li class="checklist-item ${item.checked ? "checked" : ""}">
@@ -840,7 +854,7 @@ function eventCard(e, context) {
             <input class="checklist-new-input" type="text" placeholder="Add item..." id="newEventItem-${e.id}" onkeydown="if(event.key==='Enter'){addEventItem(${e.id});}" />
             <button class="btn-secondary" onclick="addEventItem(${e.id})">Add</button>
            </div>` : "";
-    return `<div class="event-card ${prominent ? "event-card--prominent" : ""}" style="background:${cat.color};border-color:${cat.border}">
+    return `<div class="event-card ${prominent ? "event-card--prominent" : ""} ${isPast ? "event-card--past" : ""}" style="background:${cat.color};border-color:${cat.border}">
         <div class="event-card-icon">${cat.icon}</div>
         <div class="event-card-body">
             <div class="event-card-title">${e.title}</div>
@@ -863,7 +877,8 @@ function renderEventFilters() {
         cats.map(c => {
             const cat = EVENT_CATEGORIES[c] || EVENT_CATEGORIES.egyeb;
             return `<button class="event-filter-btn ${activeEventFilter === c ? "active" : ""}" onclick="setEventFilter('${c}')">${cat.icon} ${cat.label}</button>`;
-        }).join("");
+        }).join("") +
+        `<button class="event-filter-btn ${activeEventFilter === "__archived" ? "active" : ""}" onclick="setEventFilter('__archived')">🗄️ Archív</button>`;
 }
 
 function setEventFilter(cat) {
@@ -914,4 +929,3 @@ async function deleteEventItem(itemId, eventId) {
     if (ev && ev.items) ev.items = ev.items.filter(i => i.id !== itemId);
     renderEvents();
 }
-
