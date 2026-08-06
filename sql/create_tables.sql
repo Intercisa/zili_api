@@ -42,3 +42,11 @@ CREATE TABLE IF NOT EXISTS zili_events (
     created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS zili_checklist_items (
+    id       SERIAL PRIMARY KEY,
+    list_id  INT NOT NULL,
+    text     TEXT NOT NULL,
+    checked  BOOLEAN NOT NULL DEFAULT FALSE,
+    position INT NOT NULL DEFAULT 0
+);
+
