@@ -160,6 +160,15 @@ func main() {
 	router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
 	router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
 	router.GET("/api/events/calendar.ics", getCalendar)
+	router.POST("/api/send-report", func(c *gin.Context) {
+		if err := sendWeeklyReport(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "sent"})
+	})
+
+	go scheduleWeeklyReport()
 
 	router.GET("/logs", getLogs)
 	router.GET("/logs/:date", getLogByDate)
@@ -171,6 +180,22 @@ func main() {
 	err = router.Run(":8081")
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func scheduleWeeklyReport() {
+	for {
+		now := nowBp()
+		// next Monday 08:00
+		daysUntilMonday := (8 - int(now.Weekday())) % 7
+		if daysUntilMonday == 0 && (now.Hour() > 8 || (now.Hour() == 8 && now.Minute() > 0)) {
+			daysUntilMonday = 7
+		}
+		next := time.Date(now.Year(), now.Month(), now.Day()+daysUntilMonday, 8, 0, 0, 0, budapest())
+		time.Sleep(time.Until(next))
+		if err := sendWeeklyReport(); err != nil {
+			log.Println("weekly report error:", err)
+		}
 	}
 }
 
