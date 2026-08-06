@@ -8,6 +8,41 @@ import (
 	"time"
 )
 
+// WHO girls weight-for-age: index = month, [median, -2SD, +2SD] in grams
+var whoGirlsWeight = [][3]int{
+	{3232, 2400, 4300}, {4176, 3200, 5400}, {5128, 3900, 6600}, {5990, 4600, 7600}, {6694, 5100, 8400},
+	{7268, 5600, 9000}, {7775, 6000, 9500}, {8218, 6300, 10000}, {8613, 6600, 10400}, {8986, 6900, 10900},
+	{9325, 7100, 11200}, {9637, 7300, 11500}, {9924, 7500, 11800}, {10189, 7700, 12100}, {10436, 7900, 12400},
+	{10668, 8100, 12700}, {10887, 8300, 12900}, {11095, 8400, 13200}, {11294, 8600, 13400}, {11486, 8700, 13600},
+	{11671, 8900, 13900}, {11851, 9000, 14100}, {12027, 9100, 14300}, {12199, 9300, 14500}, {12368, 9400, 14700},
+	{12534, 9500, 14900}, {12697, 9700, 15100}, {12858, 9800, 15300}, {13017, 9900, 15500}, {13174, 10000, 15700},
+	{13329, 10100, 15900}, {13482, 10200, 16100}, {13634, 10300, 16300}, {13784, 10400, 16500}, {13932, 10500, 16700},
+	{14079, 10600, 16900}, {14224, 10700, 17100}, {14368, 10800, 17300}, {14510, 10900, 17500}, {14651, 11000, 17700},
+	{14790, 11100, 17900}, {14928, 11200, 18100}, {15065, 11300, 18300}, {15200, 11400, 18500}, {15334, 11500, 18700},
+	{15467, 11600, 18900}, {15599, 11700, 19100}, {15730, 11800, 19300}, {15860, 11900, 19500}, {15989, 12000, 19700},
+	{16117, 12100, 19900}, {16244, 12200, 20100}, {16370, 12300, 20300}, {16495, 12400, 20500}, {16619, 12500, 20700},
+	{16742, 12600, 20900}, {16864, 12700, 21100}, {16985, 12800, 21300}, {17105, 12900, 21500}, {17224, 13000, 21700},
+	{17342, 13100, 21900},
+}
+
+func whoWeightStatus(weightG int, ageMonths int) string {
+	if ageMonths < 0 || ageMonths > 60 {
+		return ""
+	}
+	ref := whoGirlsWeight[ageMonths]
+	median, minus2, plus2 := ref[0], ref[1], ref[2]
+	switch {
+	case weightG < minus2:
+		return fmt.Sprintf("⚠️ Below -2SD (underweight) — WHO median: %dg, -2SD: %dg", median, minus2)
+	case weightG <= median:
+		return fmt.Sprintf("✅ Normal, below median — WHO median: %dg, -2SD: %dg", median, minus2)
+	case weightG <= plus2:
+		return fmt.Sprintf("✅ Normal, above median — WHO median: %dg, +2SD: %dg", median, plus2)
+	default:
+		return fmt.Sprintf("⚠️ Above +2SD (overweight) — WHO median: %dg, +2SD: %dg", median, plus2)
+	}
+}
+
 type weeklyReport struct {
 	From             string
 	To               string
@@ -29,6 +64,7 @@ type weeklyReport struct {
 	// Weight
 	LatestWeight     *int
 	WeightGainG      *int
+	WHOStatus        string
 	// Diapers
 	WetCount         int
 	DirtyCount       int
@@ -200,6 +236,8 @@ func buildWeeklyReport() (*weeklyReport, error) {
 			gain := v - int(prevWeight.Int64)
 			r.WeightGainG = &gain
 		}
+		ageMonths := (r.AgeWeeks * 7 + r.AgeDays) * 10 / 304
+		r.WHOStatus = whoWeightStatus(v, ageMonths)
 	}
 
 	// Diapers
@@ -320,6 +358,9 @@ func formatReport(r *weeklyReport) string {
 	}
 	if r.WeightGainG != nil {
 		sb.WriteString(fmt.Sprintf("  Gain since last measurement: %+d g\n", *r.WeightGainG))
+	}
+	if r.WHOStatus != "" {
+		sb.WriteString(fmt.Sprintf("  WHO standard: %s\n", r.WHOStatus))
 	}
 	sb.WriteString("\n")
 
