@@ -253,7 +253,6 @@ function openForm(restorePending = false) {
     document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
     document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
     document.getElementById("catMilk").classList.remove("hidden");
-    document.getElementById("fedBreast").checked = true;
     const pending = restorePending ? loadPendingFeed() : null;
     if (pending) {
         document.getElementById("logDate").value = pending.logDate || new Date().toISOString().split("T")[0];
