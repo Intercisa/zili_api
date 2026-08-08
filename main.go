@@ -160,6 +160,7 @@ func main() {
 	router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
 	router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
 	router.GET("/api/events/calendar.ics", getCalendar)
+	router.GET("/api/diaper-alert", getDiaperAlert)
 	router.GET("/api/words", getWords)
 	router.POST("/api/words", createWord)
 	router.DELETE("/api/words/:id", deleteWord)
@@ -1054,6 +1055,53 @@ func deleteWord(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func getDiaperAlert(c *gin.Context) {
+	now := nowBp()
+	today := now.Format("2006-01-02")
+
+	// Count consecutive days without dirty diaper going backwards from today
+	rows, err := db.Query(`
+		SELECT DISTINCT log_date::text
+		FROM zili_daily_log
+		WHERE diaper IN ('dirty', 'both')
+		ORDER BY log_date DESC
+		LIMIT 60
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	dirtyDays := map[string]bool{}
+	for rows.Next() {
+		var d string
+		rows.Scan(&d)
+		if len(d) > 10 { d = d[:10] }
+		dirtyDays[d] = true
+	}
+
+	// Count consecutive days without dirty starting from today going back
+	consecutiveDays := 0
+	for i := 0; i < 60; i++ {
+		day := now.AddDate(0, 0, -i).Format("2006-01-02")
+		if dirtyDays[day] {
+			break
+		}
+		consecutiveDays++
+	}
+
+	// Warn: it's 20:00+ BP time and today has no dirty diaper yet
+	todayHasDirty := dirtyDays[today]
+	warnToday := !todayHasDirty && now.Hour() >= 20
+
+	c.JSON(http.StatusOK, gin.H{
+		"consecutiveDaysWithoutDirty": consecutiveDays,
+		"todayHasDirty":               todayHasDirty,
+		"warnToday":                   warnToday,
+	})
 }
 
 func getCalendar(c *gin.Context) {
