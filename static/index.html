@@ -33,6 +33,46 @@
     </label>
 </div>
 
+<div id="wordOfTheDay" class="word-of-the-day hidden">
+    <span class="word-label">💬 Word of the day:</span>
+    <span id="wordText" class="word-text"></span>
+    <button id="addWordButton" class="btn-word-add">+ Add word</button>
+</div>
+
+<!-- Add Word Modal -->
+<div id="wordOverlay" class="overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>💬 Add Word / Sound</h2>
+            <button id="closeWordButton" class="close-btn">&times;</button>
+        </div>
+        <form id="wordForm" class="entry-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="wordInput">Word / Sound <span class="required">*</span></label>
+                    <input type="text" id="wordInput" placeholder="e.g. dada, mama, baba" required />
+                </div>
+                <div class="form-group">
+                    <label for="wordDate">Date</label>
+                    <input type="date" id="wordDateInput" />
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label for="wordNotes">Notes</label>
+                <input type="text" id="wordNotes" placeholder="Optional context..." />
+            </div>
+            <div class="form-actions">
+                <button type="button" id="cancelWordButton" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save</button>
+            </div>
+        </form>
+        <div>
+            <button type="button" id="toggleWordsListButton" class="btn-secondary" style="margin-top:0.75rem;width:100%">📋 Show all words</button>
+            <div id="wordsList" class="words-list hidden"></div>
+        </div>
+    </div>
+</div>
+
 <div id="pendingFeedBanner" class="pending-feed-banner hidden">
     <span id="pendingFeedText">🍼 Unsent feeding — tap to continue</span>
     <div class="pending-feed-actions">
@@ -65,6 +105,7 @@
                 <div class="category-tabs">
                     <button type="button" class="cat-btn active" data-cat="milk">🍼 Milk</button>
                     <button type="button" class="cat-btn" data-cat="measurements">⚖️ Measurements</button>
+                    <button type="button" class="cat-btn" data-cat="words">💬 Words</button>
                     <button type="button" class="cat-btn" data-cat="none">— none —</button>
                 </div>
             </div>
@@ -77,6 +118,17 @@
                 <div class="form-group">
                     <label for="statusWeightG">Státusz súly (g)</label>
                     <input type="number" id="statusWeightG" name="statusWeightG" placeholder="e.g. 4200" />
+                </div>
+            </div>
+
+            <div id="catWords" class="cat-panel hidden form-grid">
+                <div class="form-group full-width">
+                    <label for="entryWordInput">Word / Sound <span class="required">*</span></label>
+                    <input type="text" id="entryWordInput" placeholder="e.g. dada, mama, baba" />
+                </div>
+                <div class="form-group full-width">
+                    <label for="entryWordNotes">Notes</label>
+                    <input type="text" id="entryWordNotes" placeholder="Optional context..." />
                 </div>
             </div>
 
@@ -401,6 +453,8 @@
         </div>
     </section>
 </main>
+
+<button id="scrollTopBtn" class="scroll-top-btn hidden" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
 <script src="/static/app.js"></script>
 </body>

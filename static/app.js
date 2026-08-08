@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadGrowth();
     loadEvents();
     loadBirthDate();
+    loadWordOfTheDay();
     renderPendingBanner();
 
     document.getElementById("pendingFeedContinue").addEventListener("click", () => { openForm(true); });
@@ -63,6 +64,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (tableWrapper.scrollTop + tableWrapper.clientHeight >= tableWrapper.scrollHeight - 50) {
             loadMoreLogs();
         }
+    });
+
+    window.addEventListener("scroll", () => {
+        const btn = document.getElementById("scrollTopBtn");
+        const logsSection = document.getElementById("logsTableBody").closest("section");
+        const rect = logsSection.getBoundingClientRect();
+        if (rect.top < window.innerHeight) btn.classList.remove("hidden");
+        else btn.classList.add("hidden");
     });
 
     document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -106,6 +115,33 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("cancelEventButton").addEventListener("click", closeEventForm);
     document.getElementById("eventOverlay").addEventListener("click", e => { if (e.target === document.getElementById("eventOverlay")) closeEventForm(); });
     document.getElementById("eventForm").addEventListener("submit", submitEvent);
+    document.getElementById("addWordButton").addEventListener("click", openWordForm);
+    document.getElementById("closeWordButton").addEventListener("click", closeWordForm);
+    document.getElementById("cancelWordButton").addEventListener("click", closeWordForm);
+    document.getElementById("wordOverlay").addEventListener("click", e => { if (e.target === document.getElementById("wordOverlay")) closeWordForm(); });
+    document.getElementById("toggleWordsListButton").addEventListener("click", async () => {
+        const list = document.getElementById("wordsList");
+        const btn = document.getElementById("toggleWordsListButton");
+        if (list.classList.contains("hidden")) {
+            await loadWordsList();
+            list.classList.remove("hidden");
+            btn.textContent = "🙈 Hide words";
+        } else {
+            list.classList.add("hidden");
+            btn.textContent = "📋 Show all words";
+        }
+    });
+    document.getElementById("wordForm").addEventListener("submit", async e => {
+        e.preventDefault();
+        const word = document.getElementById("wordInput").value.trim();
+        const notedDate = document.getElementById("wordDateInput").value;
+        const notes = document.getElementById("wordNotes").value.trim() || null;
+        if (!word) return;
+        await fetch("/api/words", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ word, notedDate, notes }) });
+        document.getElementById("wordForm").reset();
+        document.getElementById("wordDateInput").value = new Date().toISOString().split("T")[0];
+        loadWordOfTheDay();
+    });
     document.getElementById("logDate").value = today;
     document.getElementById("growthDate").value = today;
     document.getElementById("dVitaminCheck").addEventListener("change", e => {
@@ -127,6 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const cat = btn.dataset.cat;
             if (cat === "measurements") document.getElementById("catMeasurements").classList.remove("hidden");
             if (cat === "milk") document.getElementById("catMilk").classList.remove("hidden");
+            if (cat === "words") document.getElementById("catWords").classList.remove("hidden");
         });
     });
     document.getElementById("fedBreast").addEventListener("change", syncQuickTags);
@@ -337,6 +374,26 @@ async function submitEntry(event) {
     errorEl.classList.add("hidden"); successEl.classList.add("hidden");
     const getValue = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : v; };
     const getInt   = id => { const v = getValue(id); return v === null ? null : parseInt(v, 10); };
+
+    // Handle words category separately
+    const isWordsCat = !document.getElementById("catWords").classList.contains("hidden");
+    if (isWordsCat) {
+        const word = document.getElementById("entryWordInput").value.trim();
+        if (!word) { errorEl.textContent = "Please enter a word or sound."; errorEl.classList.remove("hidden"); return; }
+        const notedDate = getValue("logDate") || new Date().toISOString().split("T")[0];
+        const notes = document.getElementById("entryWordNotes").value.trim() || null;
+        const submitBtn = event.target.querySelector("button[type=submit]");
+        submitBtn.disabled = true; submitBtn.textContent = "Saving...";
+        try {
+            const res = await fetch("/api/words", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ word, notedDate, notes }) });
+            if (!res.ok) throw new Error("Failed to save word");
+            successEl.textContent = "Word saved!"; successEl.classList.remove("hidden");
+            setTimeout(() => { closeForm(); loadWordOfTheDay(); }, 1200);
+        } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
+        finally { submitBtn.disabled = false; submitBtn.textContent = "Save Entry"; }
+        return;
+    }
+
     const pre = getInt("preFeedWeightG");
     const post = getInt("postFeedWeightG");
     const isMilkCat = !document.getElementById("catMilk").classList.contains("hidden");
@@ -991,3 +1048,48 @@ async function deleteEventItem(itemId, eventId) {
     if (ev && ev.items) ev.items = ev.items.filter(i => i.id !== itemId);
     renderEvents();
 }
+
+async function loadWordOfTheDay() {
+    const res = await fetch("/api/words/random").catch(() => null);
+    if (!res || !res.ok) return;
+    const w = await res.json();
+    if (!w.word) return;
+    document.getElementById("wordText").textContent = w.word;
+    document.getElementById("wordOfTheDay").classList.remove("hidden");
+}
+
+async function loadWordsList() {
+    const res = await fetch("/api/words").catch(() => null);
+    if (!res || !res.ok) return;
+    const words = await res.json();
+    const container = document.getElementById("wordsList");
+    if (!words.length) { container.innerHTML = "<p style='color:#888;font-size:0.85rem'>No words yet.</p>"; return; }
+    container.innerHTML = words.map(w =>
+        `<div class="word-item">
+            <span class="word-item-text">${w.word}</span>
+            <span class="word-item-date">${w.notedDate}</span>
+            ${w.notes ? `<span class="word-item-notes">${w.notes}</span>` : ""}
+            <button onclick="deleteWord(${w.id})" class="btn-word-delete">&times;</button>
+        </div>`
+    ).join("");
+}
+
+async function deleteWord(id) {
+    await fetch(`/api/words/${id}`, { method: "DELETE" });
+    loadWordsList();
+    loadWordOfTheDay();
+}
+
+function openWordForm() {
+    document.getElementById("wordOverlay").classList.remove("hidden");
+    document.getElementById("wordDateInput").value = new Date().toISOString().split("T")[0];
+}
+
+function closeWordForm() {
+    document.getElementById("wordOverlay").classList.add("hidden");
+    document.getElementById("wordForm").reset();
+    document.getElementById("wordsList").classList.add("hidden");
+    document.getElementById("toggleWordsListButton").textContent = "📋 Show all words";
+}
+
+

@@ -160,6 +160,10 @@ func main() {
 	router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
 	router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
 	router.GET("/api/events/calendar.ics", getCalendar)
+	router.GET("/api/words", getWords)
+	router.POST("/api/words", createWord)
+	router.DELETE("/api/words/:id", deleteWord)
+	router.GET("/api/words/random", getRandomWord)
 	router.POST("/api/send-report", func(c *gin.Context) {
 		if err := sendWeeklyReport(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -972,6 +976,79 @@ func toggleChecklistItem(c *gin.Context) {
 func deleteChecklistItem(c *gin.Context) {
 	itemID := c.Param("itemId")
 	_, err := db.Exec(`DELETE FROM zili_checklist_items WHERE id = $1`, itemID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+type Word struct {
+	ID        int     `json:"id"`
+	Word      string  `json:"word"`
+	NotedDate string  `json:"notedDate"`
+	Notes     *string `json:"notes"`
+}
+
+func getWords(c *gin.Context) {
+	rows, err := db.Query(`SELECT id, word, noted_date::text, notes FROM zili_words ORDER BY noted_date DESC, id DESC`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	var words []Word
+	for rows.Next() {
+		var w Word
+		var notes sql.NullString
+		rows.Scan(&w.ID, &w.Word, &w.NotedDate, &notes)
+		if len(w.NotedDate) > 10 { w.NotedDate = w.NotedDate[:10] }
+		if notes.Valid { w.Notes = &notes.String }
+		words = append(words, w)
+	}
+	if words == nil { words = []Word{} }
+	c.JSON(http.StatusOK, words)
+}
+
+func getRandomWord(c *gin.Context) {
+	var w Word
+	var notes sql.NullString
+	err := db.QueryRow(`SELECT id, word, noted_date::text, notes FROM zili_words ORDER BY RANDOM() LIMIT 1`).Scan(&w.ID, &w.Word, &w.NotedDate, &notes)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(w.NotedDate) > 10 { w.NotedDate = w.NotedDate[:10] }
+	if notes.Valid { w.Notes = &notes.String }
+	c.JSON(http.StatusOK, w)
+}
+
+func createWord(c *gin.Context) {
+	var body Word
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if body.NotedDate == "" {
+		body.NotedDate = nowBp().Format("2006-01-02")
+	}
+	var id int
+	err := db.QueryRow(`INSERT INTO zili_words (word, noted_date, notes) VALUES ($1, $2, $3) RETURNING id`,
+		body.Word, body.NotedDate, body.Notes).Scan(&id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func deleteWord(c *gin.Context) {
+	id := c.Param("id")
+	_, err := db.Exec(`DELETE FROM zili_words WHERE id = $1`, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -39,6 +39,8 @@ type weeklyReport struct {
 	Milestones       []string
 	Events           []string
 	UpcomingEvents   []string
+	NewWords         []string
+	WordOfTheWeek    string
 }
 
 func buildWeeklyReport() (*weeklyReport, error) {
@@ -260,6 +262,23 @@ func buildWeeklyReport() (*weeklyReport, error) {
 		r.UpcomingEvents = append(r.UpcomingEvents, fmt.Sprintf("%s — %s", date, title))
 	}
 
+	// Words
+	wRows, err := db.Query(`SELECT word FROM zili_words WHERE noted_date BETWEEN $1 AND $2 ORDER BY noted_date, id`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer wRows.Close()
+	for wRows.Next() {
+		var w string
+		wRows.Scan(&w)
+		r.NewWords = append(r.NewWords, w)
+	}
+	if len(r.NewWords) > 0 {
+		r.WordOfTheWeek = r.NewWords[len(r.NewWords)-1]
+	} else {
+		db.QueryRow(`SELECT word FROM zili_words ORDER BY RANDOM() LIMIT 1`).Scan(&r.WordOfTheWeek)
+	}
+
 	return r, nil
 }
 
@@ -315,6 +334,17 @@ func formatReport(r *weeklyReport) string {
 		sb.WriteString("🎉 Milestones\n")
 		for _, m := range r.Milestones {
 			sb.WriteString(fmt.Sprintf("  • %s\n", m))
+		}
+		sb.WriteString("\n")
+	}
+
+	if r.WordOfTheWeek != "" {
+		sb.WriteString("💬 Word of the week: " + r.WordOfTheWeek + "\n")
+		if len(r.NewWords) > 1 {
+			sb.WriteString("  New words this week:\n")
+			for _, w := range r.NewWords {
+				sb.WriteString(fmt.Sprintf("  • %s\n", w))
+			}
 		}
 		sb.WriteString("\n")
 	}
