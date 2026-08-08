@@ -1216,6 +1216,28 @@ tbody tr:hover { background: #fdf2f6; }
 }
 .scroll-top-btn.hidden { opacity: 0; pointer-events: none; }
 
+.float-add-btn {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: #db2777;
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    z-index: 998;
+    transition: opacity 0.2s;
+}
+.float-add-btn.hidden { opacity: 0; pointer-events: none; }
+.scroll-top-btn:not(.hidden) ~ .float-add-btn:not(.hidden),
+.float-add-btn:not(.hidden) { bottom: 1.5rem; }
+.scroll-top-btn:not(.hidden) + .float-add-btn:not(.hidden) { bottom: 4.5rem; }
+
 .checklist-items {
     max-height: 220px;
     overflow-y: auto;

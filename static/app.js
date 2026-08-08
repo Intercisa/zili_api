@@ -77,10 +77,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener("scroll", () => {
         const btn = document.getElementById("scrollTopBtn");
+        const floatAdd = document.getElementById("floatAddBtn");
+        const openFormBtn = document.getElementById("openFormButton");
         const logsSection = document.getElementById("logsTableBody").closest("section");
         const rect = logsSection.getBoundingClientRect();
         if (rect.top < window.innerHeight) btn.classList.remove("hidden");
         else btn.classList.add("hidden");
+        const formBtnVisible = openFormBtn.getBoundingClientRect().bottom > 0;
+        if (formBtnVisible || floatAdd.dataset.formOpen) floatAdd.classList.add("hidden");
+        else floatAdd.classList.remove("hidden");
     });
 
     document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -247,6 +252,8 @@ function unlockScroll() {
 
 function openForm(restorePending = false) {
     document.getElementById("formOverlay").classList.remove("hidden");
+    document.getElementById("floatAddBtn").classList.add("hidden");
+    document.getElementById("floatAddBtn").dataset.formOpen = "1";
     lockScroll();
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
@@ -271,6 +278,7 @@ function openForm(restorePending = false) {
 
 function closeForm() {
     document.getElementById("formOverlay").classList.add("hidden");
+    delete document.getElementById("floatAddBtn").dataset.formOpen;
     unlockScroll();
     document.getElementById("entryForm").reset();
     document.getElementById("dailySummary").value = "";
@@ -440,7 +448,7 @@ async function submitEntry(event) {
         if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || `Server error: ${response.status}`); }
         clearPendingFeed();
         successEl.textContent = "Entry saved!"; successEl.classList.remove("hidden");
-        setTimeout(() => { closeForm(); loadDashboard(); }, 1200);
+        setTimeout(() => { closeForm(); loadDashboard();  loadDiaperAlert();}, 1200);
     } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
     finally { submitBtn.disabled = false; submitBtn.textContent = "Save Entry"; }
 }
