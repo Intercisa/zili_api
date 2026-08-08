@@ -63,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadBirthDate();
     loadWordOfTheDay();
     renderPendingBanner();
+    loadDiaperAlert();
 
     document.getElementById("pendingFeedContinue").addEventListener("click", () => { openForm(true); });
     document.getElementById("pendingFeedDiscard").addEventListener("click", () => { clearPendingFeed(); });
@@ -499,7 +500,6 @@ async function loadSummary() {
     document.getElementById("firstWeight").textContent = formatGram(data.firstWeight);
     document.getElementById("latestWeight").textContent = formatGram(data.latestWeight);
     document.getElementById("weightGain").textContent = formatGram(data.weightGain);
-    document.getElementById("averageMilk").textContent = formatGram(data.averageMilkG);
 }
 
 async function loadLogs() {
@@ -1142,6 +1142,23 @@ function closeWordForm() {
     document.getElementById("wordForm").reset();
     document.getElementById("wordsList").classList.add("hidden");
     document.getElementById("toggleWordsListButton").textContent = "📋 Show all words";
+}
+
+async function loadDiaperAlert() {
+    const data = await fetch("/api/diaper-alert").then(r => r.json()).catch(() => null);
+    if (!data) return;
+    const banner = document.getElementById("diaperAlertBanner");
+    const { consecutiveDaysWithoutDirty, todayHasDirty, warnToday } = data;
+
+    if (consecutiveDaysWithoutDirty >= 1) {
+        banner.className = "diaper-alert-banner alert";
+        banner.textContent = `🚨 kakis pelenka nélküli napok száma: ${consecutiveDaysWithoutDirty} !`;
+    } else if (warnToday) {
+        banner.className = "diaper-alert-banner warn";
+        banner.textContent = "⚠️ Ma még nem volt kakis pelenka — hamarosan letelik a nap!";
+    } else {
+        banner.className = "diaper-alert-banner hidden";
+    }
 }
 
 

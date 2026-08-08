@@ -69,6 +69,7 @@ type weeklyReport struct {
 	WetCount         int
 	DirtyCount       int
 	BothCount        int
+	DaysWithoutDirty int
 	// Baths
 	BathCount        int
 	// Milestones & Events
@@ -245,6 +246,30 @@ func buildWeeklyReport() (*weeklyReport, error) {
 	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE diaper = 'dirty' AND log_date BETWEEN $1 AND $2`, from, to).Scan(&r.DirtyCount)
 	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE diaper = 'both' AND log_date BETWEEN $1 AND $2`, from, to).Scan(&r.BothCount)
 
+	// Consecutive days without dirty diaper
+	dirtyRows, err := db.Query(`
+		SELECT DISTINCT log_date::text FROM zili_daily_log
+		WHERE diaper IN ('dirty', 'both')
+		ORDER BY log_date DESC LIMIT 60
+	`)
+	if err == nil {
+		dirtyDays := map[string]bool{}
+		for dirtyRows.Next() {
+			var d string
+			dirtyRows.Scan(&d)
+			if len(d) > 10 { d = d[:10] }
+			dirtyDays[d] = true
+		}
+		dirtyRows.Close()
+		for i := 0; i < 60; i++ {
+			day := now.AddDate(0, 0, -i).Format("2006-01-02")
+			if dirtyDays[day] {
+				break
+			}
+			r.DaysWithoutDirty++
+		}
+	}
+
 	// Baths
 	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE bathed = true AND log_date BETWEEN $1 AND $2`, from, to).Scan(&r.BathCount)
 
@@ -367,7 +392,11 @@ func formatReport(r *weeklyReport) string {
 	sb.WriteString("🚼 Diapers\n")
 	total := r.WetCount + r.DirtyCount + r.BothCount
 	sb.WriteString(fmt.Sprintf("  Total: %d (wet: %d, dirty: %d, both: %d)\n", total, r.WetCount, r.DirtyCount, r.BothCount))
-	sb.WriteString(fmt.Sprintf("  Daily avg: %.1f\n\n", float64(total)/7))
+	sb.WriteString(fmt.Sprintf("  Daily avg: %.1f\n", float64(total)/7))
+	if r.DaysWithoutDirty >= 1 {
+		sb.WriteString(fmt.Sprintf("  ⚠️ %d day(s) without dirty diaper!\n", r.DaysWithoutDirty))
+	}
+	sb.WriteString("\n")
 
 	sb.WriteString(fmt.Sprintf("🛁 Baths: %d\n\n", r.BathCount))
 
