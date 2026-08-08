@@ -1,22 +1,23 @@
 CREATE TABLE IF NOT EXISTS zili_daily_log (
-    id integer NOT NULL,
-    log_date date NOT NULL,
-    log_time time without time zone,
-    daily_summary text,
-    status_weight_g integer,
-    pre_feed_weight_g integer,
-    post_feed_weight_g integer,
-    milk_transfer_g integer,
-    measurement_weight_g integer,
-    height_cm numeric(5,1),
-    head_cm numeric(5,1),
-    sleep_event text,
-    diaper text,
-    fed_breast boolean DEFAULT false,
-    fed_bottle boolean DEFAULT false,
-    bathed boolean DEFAULT false,
-    milestone boolean DEFAULT false
+    id                   SERIAL PRIMARY KEY,
+    log_date             DATE NOT NULL,
+    log_time             TIME,
+    daily_summary        TEXT,
+    status_weight_g      INTEGER,
+    pre_feed_weight_g    INTEGER,
+    post_feed_weight_g   INTEGER,
+    milk_transfer_g      INTEGER,
+    height_cm            NUMERIC(5,1),
+    head_cm              NUMERIC(5,1),
+    measurement_weight_g INTEGER,
+    sleep_event          TEXT,
+    diaper               TEXT,
+    fed_breast           BOOLEAN NOT NULL DEFAULT FALSE,
+    fed_bottle           BOOLEAN NOT NULL DEFAULT FALSE,
+    bathed               BOOLEAN NOT NULL DEFAULT FALSE,
+    milestone            BOOLEAN NOT NULL DEFAULT FALSE
 );
+
 
 CREATE TABLE IF NOT EXISTS vitamin_checks (
     key TEXT PRIMARY KEY,
