@@ -8,22 +8,49 @@ let logsLoading = false;
 
 const PENDING_FEED_KEY = "zili_pending_feed";
 
-function savePendingFeed(data) {
-    localStorage.setItem(PENDING_FEED_KEY, JSON.stringify(data));
+async function savePendingFeed(data) {
+    const payload = {
+        logDate: data.logDate, logTime: data.logTime,
+        preFeedWeightG: data.preFeedWeightG, postFeedWeightG: data.postFeedWeightG,
+        fedBreast: data.fedBreast, fedBottle: data.fedBottle,
+        statusWeightG: data.statusWeightG ? parseInt(data.statusWeightG) : null,
+        measurementWeightG: data.measurementWeightG ? parseInt(data.measurementWeightG) : null,
+        dailySummary: data.dailySummary || "",
+        pending: true,
+    };
+    const res = await fetch("/api/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const { id } = await res.json();
+    localStorage.setItem(PENDING_FEED_KEY, JSON.stringify({ ...data, id }));
     renderPendingBanner();
 }
 
-function loadPendingFeed() {
-    try { return JSON.parse(localStorage.getItem(PENDING_FEED_KEY)); } catch { return null; }
+async function loadPendingFeed() {
+    const res = await fetch("/api/pending-feed").catch(() => null);
+    if (!res || !res.ok) return null;
+    const data = await res.json();
+    if (!data) return null;
+    let logTime = data.logTime;
+    if (logTime && logTime.length > 5) logTime = logTime.substring(0, 5);
+    const logDate = data.logDate ? data.logDate.substring(0, 10) : null;
+    const local = (() => { try { return JSON.parse(localStorage.getItem(PENDING_FEED_KEY)); } catch { return null; } })();
+    const quickTags = (local && local.id === data.id) ? (local.quickTags || []) : [];
+    return {
+        id: data.id, logDate, logTime,
+        preFeedWeightG: data.preFeedWeightG, postFeedWeightG: data.postFeedWeightG,
+        fedBreast: data.fedBreast, fedBottle: data.fedBottle,
+        statusWeightG: data.statusWeightG, measurementWeightG: data.measurementWeightG,
+        dailySummary: data.dailySummary, quickTags,
+    };
 }
 
-function clearPendingFeed() {
+async function clearPendingFeed(id) {
+    if (id) await fetch(`/api/pending-feed/${id}`, { method: "DELETE" });
     localStorage.removeItem(PENDING_FEED_KEY);
     document.getElementById("pendingFeedBanner").classList.add("hidden");
 }
 
-function renderPendingBanner() {
-    const pending = loadPendingFeed();
+async function renderPendingBanner() {
+    const pending = await loadPendingFeed();
     const banner = document.getElementById("pendingFeedBanner");
     if (!pending) { banner.classList.add("hidden"); return; }
     const what = pending.preFeedWeightG !== null ? `pre: ${pending.preFeedWeightG}g — missing post` : `post: ${pending.postFeedWeightG}g — missing pre`;
@@ -66,7 +93,10 @@ document.addEventListener("DOMContentLoaded", () => {
     loadDiaperAlert();
 
     document.getElementById("pendingFeedContinue").addEventListener("click", () => { openForm(true); });
-    document.getElementById("pendingFeedDiscard").addEventListener("click", () => { clearPendingFeed(); });
+    document.getElementById("pendingFeedDiscard").addEventListener("click", async () => {
+        const pending = await loadPendingFeed();
+        clearPendingFeed(pending?.id);
+    });
 
     const tableWrapper = document.querySelector(".table-wrapper");
     tableWrapper.addEventListener("scroll", () => {
@@ -244,7 +274,7 @@ function unlockScroll() {
     window.dispatchEvent(new Event('scroll'));
 }
 
-function openForm(restorePending = false) {
+async function openForm(restorePending = false) {
     document.getElementById("formOverlay").classList.remove("hidden");
     document.getElementById("floatAddBtn").classList.add("hidden");
     document.getElementById("scrollTopBtn").classList.add("hidden");
@@ -256,14 +286,22 @@ function openForm(restorePending = false) {
     document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
     document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
     document.getElementById("catMilk").classList.remove("hidden");
-    const pending = restorePending ? loadPendingFeed() : null;
+    const pending = restorePending ? await loadPendingFeed() : null;
     if (pending) {
         document.getElementById("logDate").value = pending.logDate || new Date().toISOString().split("T")[0];
         document.getElementById("logTime").value = pending.logTime || "";
-        document.getElementById("preFeedWeightG").value = pending.preFeedWeightG || "";
-        document.getElementById("postFeedWeightG").value = pending.postFeedWeightG || "";
+        document.getElementById("preFeedWeightG").value = pending.preFeedWeightG ?? "";
+        document.getElementById("postFeedWeightG").value = pending.postFeedWeightG ?? "";
         document.getElementById("fedBreast").checked = pending.fedBreast || false;
         document.getElementById("fedBottle").checked = pending.fedBottle || false;
+        document.getElementById("statusWeightG").value = pending.statusWeightG ?? "";
+        document.getElementById("measurementWeightG").value = pending.measurementWeightG ?? "";
+        document.getElementById("dailySummary").value = pending.dailySummary || "";
+        if (pending.quickTags) {
+            document.querySelectorAll(".quick-tag").forEach(cb => {
+                cb.checked = pending.quickTags.includes(cb.value);
+            });
+        }
     } else {
         const now = new Date();
         document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
@@ -406,7 +444,14 @@ async function submitEntry(event) {
         return;
     }
     if (isMilkCat && (pre !== null || post !== null) && !(pre !== null && post !== null)) {
-        const pending = { logDate: getValue("logDate"), logTime: getValue("logTime"), preFeedWeightG: pre, postFeedWeightG: post, fedBreast, fedBottle };
+        const pending = {
+            logDate: getValue("logDate"), logTime: getValue("logTime"),
+            preFeedWeightG: pre, postFeedWeightG: post, fedBreast, fedBottle,
+            statusWeightG: getValue("statusWeightG"),
+            measurementWeightG: getValue("measurementWeightG"),
+            dailySummary: getValue("dailySummary"),
+            quickTags: [...document.querySelectorAll(".quick-tag:checked")].map(cb => cb.value),
+        };
         savePendingFeed(pending);
         successEl.textContent = "Saved as pending — add the missing weight to complete.";
         successEl.classList.remove("hidden");
@@ -439,11 +484,13 @@ async function submitEntry(event) {
         milestone: [...document.querySelectorAll(".quick-tag:checked")].some(cb => cb.value === "🎉"),
     };
     try {
+        const pendingEntry = await loadPendingFeed();
         const response = await fetch("/api/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || `Server error: ${response.status}`); }
-        clearPendingFeed();
+        if (pendingEntry?.id) await fetch(`/api/pending-feed/${pendingEntry.id}`, { method: "DELETE" });
+        localStorage.removeItem(PENDING_FEED_KEY);
         successEl.textContent = "Entry saved!"; successEl.classList.remove("hidden");
-        setTimeout(() => { closeForm(); loadDashboard();  loadDiaperAlert();}, 1200);
+        setTimeout(() => { closeForm(); loadDashboard(); loadDiaperAlert(); renderPendingBanner(); }, 1200);
     } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
     finally { submitBtn.disabled = false; submitBtn.textContent = "Save Entry"; }
 }
