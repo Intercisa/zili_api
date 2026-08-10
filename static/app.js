@@ -243,6 +243,25 @@ function syncQuickTags() {
     document.getElementById("dailySummary").value = parts.join(", ");
 }
 
+function syncEditQuickTags() {
+    const parts = [];
+    const fedBreast = document.getElementById("editFedBreast").checked;
+    const fedBottle = document.getElementById("editFedBottle").checked;
+    if (fedBreast && fedBottle) parts.push("cici, cumisüveg");
+    else if (fedBreast) parts.push("cici");
+    else if (fedBottle) parts.push("cumisüveg");
+    const pre = document.getElementById("editPreFeedWeightG").value.trim();
+    const post = document.getElementById("editPostFeedWeightG").value.trim();
+    if (pre || post) parts.push(`pre: ${pre || "?"}g, post: ${post || "?"}g`);
+    const checked = [...document.querySelectorAll(".edit-quick-tag:checked")].map(cb => cb.value);
+    parts.push(...checked);
+    const measW = document.getElementById("editMeasurementWeightG").value.trim();
+    const statW = document.getElementById("editStatusWeightG").value.trim();
+    if (measW) parts.push(`pucér popós súly: ${measW}g`);
+    if (statW) parts.push(`státusz súly: ${statW}g`);
+    document.getElementById("editDailySummary").value = parts.join(", ");
+}
+
 async function loadVitamins() {
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
@@ -505,9 +524,35 @@ function openEditForm(item) {
     let timeVal = "";
     if (item.logTime) timeVal = item.logTime.includes("T") ? item.logTime.substring(11, 16) : item.logTime.substring(0, 5);
     document.getElementById("editLogTime").value = timeVal;
-    document.getElementById("editDailySummary").value = item.dailySummary || "";
     document.getElementById("editHeightCm").value = item.heightCm || "";
     document.getElementById("editHeadCm").value = item.headCm || "";
+    document.getElementById("editPreFeedWeightG").value = item.preFeedWeightG ?? "";
+    document.getElementById("editPostFeedWeightG").value = item.postFeedWeightG ?? "";
+    document.getElementById("editStatusWeightG").value = item.statusWeightG ?? "";
+    document.getElementById("editMeasurementWeightG").value = item.measurementWeightG ?? "";
+    document.getElementById("editFedBreast").checked = item.fedBreast || false;
+    document.getElementById("editFedBottle").checked = item.fedBottle || false;
+    const diaper = item.diaper || "";
+    const bathed = item.bathed || false;
+    const milestone = item.milestone || false;
+    const sleepEvent = item.sleepEvent || "";
+    document.querySelectorAll(".edit-quick-tag").forEach(cb => {
+        if (cb.value === "kakis pelus") cb.checked = diaper === "dirty" || diaper === "both";
+        else if (cb.value === "pisis pelus") cb.checked = diaper === "wet" || diaper === "both";
+        else if (cb.value === "ébredt") cb.checked = sleepEvent === "woke_up";
+        else if (cb.value === "elaludt" || cb.value === "cicin elaludt") cb.checked = sleepEvent === "fell_asleep" && cb.value === "elaludt";
+        else if (cb.value === "fürcsi") cb.checked = bathed;
+        else if (cb.value === "🎉") cb.checked = milestone;
+        else cb.checked = false;
+        cb.onchange = syncEditQuickTags;
+    });
+    document.getElementById("editDailySummary").value = item.dailySummary || "";
+    document.getElementById("editFedBreast").onchange = syncEditQuickTags;
+    document.getElementById("editFedBottle").onchange = syncEditQuickTags;
+    document.getElementById("editPreFeedWeightG").oninput = syncEditQuickTags;
+    document.getElementById("editPostFeedWeightG").oninput = syncEditQuickTags;
+    document.getElementById("editStatusWeightG").oninput = syncEditQuickTags;
+    document.getElementById("editMeasurementWeightG").oninput = syncEditQuickTags;
 }
 
 function closeEditForm() {
@@ -525,12 +570,33 @@ async function submitEdit(event) {
     const submitBtn = event.target.querySelector("button[type=submit]");
     submitBtn.disabled = true; submitBtn.textContent = "Saving...";
     const id = document.getElementById("editId").value;
-    const logDate = document.getElementById("editLogDate").value.trim();
-    const logTimeRaw = document.getElementById("editLogTime").value.trim();
-    const dailySummary = document.getElementById("editDailySummary").value.trim();
-    const heightCmRaw = document.getElementById("editHeightCm").value.trim();
-    const headCmRaw = document.getElementById("editHeadCm").value.trim();
-    const payload = { logDate, logTime: logTimeRaw === "" ? null : logTimeRaw, dailySummary, heightCm: heightCmRaw === "" ? null : parseFloat(heightCmRaw), headCm: headCmRaw === "" ? null : parseFloat(headCmRaw) };
+    const getVal = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : v; };
+    const getInt = id => { const v = getVal(id); return v === null ? null : parseInt(v, 10); };
+    const getFloat = id => { const v = getVal(id); return v === null ? null : parseFloat(v); };
+    const pre = getInt("editPreFeedWeightG");
+    const post = getInt("editPostFeedWeightG");
+    const milkTransfer = (pre !== null && post !== null && post > pre) ? post - pre : null;
+    const kakis = [...document.querySelectorAll(".edit-quick-tag:checked")].some(cb => cb.value === "kakis pelus");
+    const pisis = [...document.querySelectorAll(".edit-quick-tag:checked")].some(cb => cb.value === "pisis pelus");
+    const checked = [...document.querySelectorAll(".edit-quick-tag:checked")].map(cb => cb.value);
+    const payload = {
+        logDate: getVal("editLogDate"),
+        logTime: getVal("editLogTime"),
+        dailySummary: getVal("editDailySummary") || "",
+        heightCm: getFloat("editHeightCm"),
+        headCm: getFloat("editHeadCm"),
+        preFeedWeightG: pre,
+        postFeedWeightG: post,
+        milkTransferG: milkTransfer,
+        statusWeightG: getInt("editStatusWeightG"),
+        measurementWeightG: getInt("editMeasurementWeightG"),
+        fedBreast: document.getElementById("editFedBreast").checked,
+        fedBottle: document.getElementById("editFedBottle").checked,
+        diaper: kakis && pisis ? "both" : kakis ? "dirty" : pisis ? "wet" : null,
+        sleepEvent: checked.includes("ébredt") ? "woke_up" : (checked.includes("elaludt") || checked.includes("cicin elaludt")) ? "fell_asleep" : null,
+        bathed: checked.includes("fürcsi"),
+        milestone: checked.includes("🎉"),
+    };
     try {
         const res = await fetch(`/api/logs/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `Server error: ${res.status}`); }
