@@ -79,9 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const btn = document.getElementById("scrollTopBtn");
         const floatAdd = document.getElementById("floatAddBtn");
         const openFormBtn = document.getElementById("openFormButton");
-        const logsSection = document.getElementById("logsTableBody").closest("section");
-        const rect = logsSection.getBoundingClientRect();
-        if (rect.top < window.innerHeight) btn.classList.remove("hidden");
+        const modalOpen = !!document.getElementById("floatAddBtn").dataset.formOpen;
+        if (!modalOpen && openFormBtn.getBoundingClientRect().bottom < 0) btn.classList.remove("hidden");
         else btn.classList.add("hidden");
         const formBtnVisible = openFormBtn.getBoundingClientRect().bottom > 0;
         if (formBtnVisible || floatAdd.dataset.formOpen) floatAdd.classList.add("hidden");
@@ -101,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.getElementById("refreshButton").addEventListener("click", () => { loadDashboard(); loadGrowth(); loadEvents(); });
+
     document.getElementById("searchInput").addEventListener("input", async event => {
         const q = event.target.value.trim();
         if (!q) { loadLogs(); return; }
@@ -234,25 +233,21 @@ async function saveVitamin(key, checked, date) {
 }
 
 function lockScroll() {
-    const scrollY = window.scrollY;
-    document.body.dataset.scrollY = scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
+    document.body.dataset.scrollY = window.scrollY;
+    document.body.style.overflow = 'hidden';
 }
 
 function unlockScroll() {
-    const scrollY = parseInt(document.body.dataset.scrollY || '0');
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
+    document.body.style.overflow = '';
+    window.scrollTo(0, parseInt(document.body.dataset.scrollY || '0'));
     delete document.body.dataset.scrollY;
-    window.scrollTo(0, scrollY);
+    window.dispatchEvent(new Event('scroll'));
 }
 
 function openForm(restorePending = false) {
     document.getElementById("formOverlay").classList.remove("hidden");
     document.getElementById("floatAddBtn").classList.add("hidden");
+    document.getElementById("scrollTopBtn").classList.add("hidden");
     document.getElementById("floatAddBtn").dataset.formOpen = "1";
     lockScroll();
     document.getElementById("formError").classList.add("hidden");
@@ -1156,14 +1151,11 @@ async function loadDiaperAlert() {
     const data = await fetch("/api/diaper-alert").then(r => r.json()).catch(() => null);
     if (!data) return;
     const banner = document.getElementById("diaperAlertBanner");
-    const { consecutiveDaysWithoutDirty, todayHasDirty, warnToday } = data;
+    const { consecutiveDaysWithoutDirty } = data;
 
     if (consecutiveDaysWithoutDirty >= 1) {
         banner.className = "diaper-alert-banner alert";
         banner.textContent = `🚨 kakis pelenka nélküli napok száma: ${consecutiveDaysWithoutDirty} !`;
-    } else if (warnToday) {
-        banner.className = "diaper-alert-banner warn";
-        banner.textContent = "⚠️ Ma még nem volt kakis pelenka — hamarosan letelik a nap!";
     } else {
         banner.className = "diaper-alert-banner hidden";
     }

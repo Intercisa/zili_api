@@ -1202,26 +1202,43 @@ tbody tr:hover { background: #fdf2f6; }
     position: fixed;
     bottom: 1.5rem;
     right: 1.5rem;
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 3rem;
+    height: 3rem;
     border-radius: 50%;
     background: #7b174e;
     color: white;
     border: none;
     font-size: 1.2rem;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    box-shadow: 0 4px 16px rgba(123,23,78,0.35);
     z-index: 999;
-    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s, box-shadow 0.2s;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
 }
-.scroll-top-btn.hidden { opacity: 0; pointer-events: none; }
+.scroll-top-btn:hover {
+    background: #9d174d;
+    box-shadow: 0 6px 20px rgba(123,23,78,0.45);
+    transform: scale(1.1) translateY(-2px);
+}
+.scroll-top-btn:active { transform: scale(0.95); }
+.scroll-top-btn.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8) translateY(8px);
+}
 
 .float-add-btn {
     position: fixed;
     bottom: 1.5rem;
     right: 1.5rem;
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 3rem;
+    height: 3rem;
     border-radius: 50%;
     background: #db2777;
     color: white;
@@ -1229,14 +1246,31 @@ tbody tr:hover { background: #fdf2f6; }
     font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    box-shadow: 0 4px 16px rgba(219,39,119,0.35);
     z-index: 998;
-    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s, box-shadow 0.2s;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
 }
-.float-add-btn.hidden { opacity: 0; pointer-events: none; }
+.float-add-btn:hover {
+    background: #be185d;
+    box-shadow: 0 6px 20px rgba(219,39,119,0.45);
+    transform: scale(1.1) translateY(-2px);
+}
+.float-add-btn:active { transform: scale(0.95); }
+.float-add-btn.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8) translateY(8px);
+}
 .scroll-top-btn:not(.hidden) ~ .float-add-btn:not(.hidden),
 .float-add-btn:not(.hidden) { bottom: 1.5rem; }
-.scroll-top-btn:not(.hidden) + .float-add-btn:not(.hidden) { bottom: 4.5rem; }
+.scroll-top-btn:not(.hidden) + .float-add-btn:not(.hidden) { bottom: 5rem; }
 
 .checklist-items {
     max-height: 220px;
