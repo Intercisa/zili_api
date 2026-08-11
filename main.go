@@ -33,6 +33,7 @@ type DailyLog struct {
         FedBottle         bool     `json:"fedBottle"`
         Bathed            bool     `json:"bathed"`
         Milestone         bool     `json:"milestone"`
+        Pending           bool     `json:"pending"`
 }
 
 type WeightPoint struct {
@@ -160,6 +161,8 @@ func main() {
         router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
         router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
         router.GET("/api/events/calendar.ics", getCalendar)
+        router.GET("/api/pending-feed", getPendingFeed)
+        router.DELETE("/api/pending-feed/:id", deletePendingFeed)
         router.GET("/api/diaper-alert", getDiaperAlert)
         router.GET("/api/words", getWords)
         router.POST("/api/words", createWord)
@@ -348,20 +351,62 @@ func createLog(c *gin.Context) {
                         log_date, log_time, daily_summary, status_weight_g,
                         pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
                         height_cm, head_cm, measurement_weight_g,
-                        sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                        sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone, pending
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
                 RETURNING id
         `,
                 entry.LogDate, entry.LogTime, entry.DailySummary,
                 entry.StatusWeightG, entry.PreFeedWeightG, entry.PostFeedWeightG,
                 entry.MilkTransferG, entry.HeightCm, entry.HeadCm, entry.MeasurementWeight,
-                entry.SleepEvent, entry.Diaper, entry.FedBreast, entry.FedBottle, entry.Bathed, entry.Milestone,
+                entry.SleepEvent, entry.Diaper, entry.FedBreast, entry.FedBottle, entry.Bathed, entry.Milestone, entry.Pending,
         ).Scan(&id)
         if err != nil {
                 c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
                 return
         }
         c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func getPendingFeed(c *gin.Context) {
+        var entry DailyLog
+        var logTime sql.NullString
+        var statusWeightG, measurementWeightG sql.NullInt64
+        err := db.QueryRow(`
+                SELECT id, log_date::text, log_time::text, pre_feed_weight_g, post_feed_weight_g,
+                       fed_breast, fed_bottle, status_weight_g, measurement_weight_g, daily_summary
+                FROM zili_daily_log WHERE pending = true ORDER BY id DESC LIMIT 1
+        `).Scan(&entry.ID, &entry.LogDate, &logTime, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
+                &entry.FedBreast, &entry.FedBottle, &statusWeightG, &measurementWeightG, &entry.DailySummary)
+        if err == sql.ErrNoRows {
+                c.JSON(http.StatusOK, nil)
+                return
+        }
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }
+        if logTime.Valid {
+                entry.LogTime = &logTime.String
+        }
+        if statusWeightG.Valid {
+                v := int(statusWeightG.Int64)
+                entry.StatusWeightG = &v
+        }
+        if measurementWeightG.Valid {
+                v := int(measurementWeightG.Int64)
+                entry.MeasurementWeight = &v
+        }
+        c.JSON(http.StatusOK, entry)
+}
+
+func deletePendingFeed(c *gin.Context) {
+        id := c.Param("id")
+        _, err := db.Exec(`DELETE FROM zili_daily_log WHERE id = $1 AND pending = true`, id)
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }
+        c.Status(http.StatusNoContent)
 }
 
 func updateLog(c *gin.Context) {
