@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS zili_daily_log (
     fed_breast           BOOLEAN DEFAULT FALSE,
     fed_bottle           BOOLEAN DEFAULT FALSE,
     bathed               BOOLEAN DEFAULT FALSE,
+    pending              BOOLEAN NOT NULL DEFAULT FALSE,
     milestone            BOOLEAN DEFAULT FALSE
 );
 

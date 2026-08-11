@@ -1402,14 +1402,14 @@ func sendNapPush() {
 		resp, err := webpush.SendNotification(payload, &sub, &webpush.Options{
 			VAPIDPublicKey:  vapidPublic,
 			VAPIDPrivateKey: vapidPrivate,
-			TTL:             60,
+			TTL:             3600,
 		})
 		if err != nil {
 			log.Println("nap push send error:", err)
 			continue
 		}
 		resp.Body.Close()
-		if resp.StatusCode == 410 {
+		if resp.StatusCode == 410 || resp.StatusCode == 404 {
 			db.Exec(`DELETE FROM push_subscriptions WHERE endpoint = $1`, sub.Endpoint)
 		}
 	}
@@ -1418,7 +1418,6 @@ func sendNapPush() {
 func scheduleNapReminder() {
 	const napThreshold = 90 * time.Minute
 	const checkInterval = 60 * time.Second
-	lastFired := time.Time{}
 
 	for {
 		time.Sleep(checkInterval)
@@ -1445,7 +1444,6 @@ func scheduleNapReminder() {
 		if err != nil {
 			continue
 		}
-		// if fell asleep after last wake, kid is sleeping — no reminder needed
 		if lastSleepStr.Valid {
 			lastSleep, err := time.ParseInLocation("2006-01-02 15:04:05", lastSleepStr.String, bp)
 			if err == nil && lastSleep.After(lastWake) {
@@ -1456,11 +1454,18 @@ func scheduleNapReminder() {
 		if awake < napThreshold {
 			continue
 		}
-		// fire once per wake cycle: only if we haven't fired since this wake event
-		if !lastFired.Before(lastWake) {
-			continue
+		// persist lastFired in DB so server restarts don't re-fire for the same wake cycle
+		var lastFiredStr sql.NullString
+		db.QueryRow(`SELECT value FROM app_settings WHERE key = 'nap_reminder_last_fired'`).Scan(&lastFiredStr)
+		if lastFiredStr.Valid && lastFiredStr.String != "" {
+			lastFired, err := time.ParseInLocation("2006-01-02 15:04:05", lastFiredStr.String, bp)
+			if err == nil && !lastFired.Before(lastWake) {
+				continue
+			}
 		}
-		lastFired = time.Now()
+		db.Exec(`INSERT INTO app_settings (key, value) VALUES ('nap_reminder_last_fired', $1)
+			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+			time.Now().In(bp).Format("2006-01-02 15:04:05"))
 		go sendNapPush()
 	}
 }

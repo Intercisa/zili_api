@@ -1275,28 +1275,65 @@ async function loadDiaperAlert() {
 }
 
 
-async function initPushNotifications() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+async function subscribeToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Push not supported on this browser/device');
+        return false;
+    }
     const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
+    if (permission !== 'granted') {
+        alert('Permission denied: ' + permission);
+        return false;
+    }
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
-    if (existing) return;
+    if (existing) return true;
     const res = await fetch('/api/push-vapid-key').catch(() => null);
-    if (!res || !res.ok) return;
+    if (!res || !res.ok) {
+        alert('Failed to get VAPID key');
+        return false;
+    }
     const { publicKey } = await res.json();
     const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: publicKey,
-    });
+    }).catch(e => { alert('Subscribe error: ' + e.message); return null; });
+    if (!sub) return false;
     await fetch('/api/push-subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sub),
     });
+    return true;
+}
+
+async function initPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isIOS) {
+        // iOS requires user gesture; show button if not yet subscribed
+        if (!existing) document.getElementById('pushEnableBtn').classList.remove('hidden');
+        return;
+    }
+    if (existing) {
+        // Re-send to server in case it was lost (e.g. after server restart/DB wipe)
+        await fetch('/api/push-subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(existing),
+        });
+        return;
+    }
+    await subscribeToPush();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     initPushNotifications();
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !document.querySelector('.overlay:not(.hidden)')) location.reload();
 });
 

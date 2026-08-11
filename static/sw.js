@@ -19,7 +19,6 @@ self.addEventListener('push', e => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/static/icon-192.png',
-      badge: '/static/icon-192.png',
       tag: 'nap-reminder',
       renotify: true,
     })
