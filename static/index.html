@@ -18,9 +18,11 @@
     <div class="header-actions">
         <button id="openFormButton">+ Add Entry</button>
         <button id="openGrowthFormButton">📏 Add Growth</button>
-        <button id="refreshButton">Refresh</button>
+
     </div>
 </header>
+
+<div id="diaperAlertBanner" class="diaper-alert-banner hidden"></div>
 
 <div class="vitamin-reminders">
     <label class="reminder-item">
@@ -458,6 +460,7 @@
 </main>
 
 <button id="scrollTopBtn" class="scroll-top-btn hidden" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<button id="floatAddBtn" class="float-add-btn hidden" onclick="openForm()">+</button>
 
 <script src="/static/app.js"></script>
 </body>

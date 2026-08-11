@@ -63,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadBirthDate();
     loadWordOfTheDay();
     renderPendingBanner();
+    loadDiaperAlert();
 
     document.getElementById("pendingFeedContinue").addEventListener("click", () => { openForm(true); });
     document.getElementById("pendingFeedDiscard").addEventListener("click", () => { clearPendingFeed(); });
@@ -76,10 +77,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener("scroll", () => {
         const btn = document.getElementById("scrollTopBtn");
-        const logsSection = document.getElementById("logsTableBody").closest("section");
-        const rect = logsSection.getBoundingClientRect();
-        if (rect.top < window.innerHeight) btn.classList.remove("hidden");
+        const floatAdd = document.getElementById("floatAddBtn");
+        const openFormBtn = document.getElementById("openFormButton");
+        const modalOpen = !!document.getElementById("floatAddBtn").dataset.formOpen;
+        if (!modalOpen && openFormBtn.getBoundingClientRect().bottom < 0) btn.classList.remove("hidden");
         else btn.classList.add("hidden");
+        const formBtnVisible = openFormBtn.getBoundingClientRect().bottom > 0;
+        if (formBtnVisible || floatAdd.dataset.formOpen) floatAdd.classList.add("hidden");
+        else floatAdd.classList.remove("hidden");
     });
 
     document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -95,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    document.getElementById("refreshButton").addEventListener("click", () => { loadDashboard(); loadGrowth(); loadEvents(); });
+
     document.getElementById("searchInput").addEventListener("input", async event => {
         const q = event.target.value.trim();
         if (!q) { loadLogs(); return; }
@@ -228,24 +233,22 @@ async function saveVitamin(key, checked, date) {
 }
 
 function lockScroll() {
-    const scrollY = window.scrollY;
-    document.body.dataset.scrollY = scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
+    document.body.dataset.scrollY = window.scrollY;
+    document.body.style.overflow = 'hidden';
 }
 
 function unlockScroll() {
-    const scrollY = parseInt(document.body.dataset.scrollY || '0');
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
+    document.body.style.overflow = '';
+    window.scrollTo(0, parseInt(document.body.dataset.scrollY || '0'));
     delete document.body.dataset.scrollY;
-    window.scrollTo(0, scrollY);
+    window.dispatchEvent(new Event('scroll'));
 }
 
 function openForm(restorePending = false) {
     document.getElementById("formOverlay").classList.remove("hidden");
+    document.getElementById("floatAddBtn").classList.add("hidden");
+    document.getElementById("scrollTopBtn").classList.add("hidden");
+    document.getElementById("floatAddBtn").dataset.formOpen = "1";
     lockScroll();
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
@@ -270,6 +273,7 @@ function openForm(restorePending = false) {
 
 function closeForm() {
     document.getElementById("formOverlay").classList.add("hidden");
+    delete document.getElementById("floatAddBtn").dataset.formOpen;
     unlockScroll();
     document.getElementById("entryForm").reset();
     document.getElementById("dailySummary").value = "";
@@ -439,7 +443,7 @@ async function submitEntry(event) {
         if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || `Server error: ${response.status}`); }
         clearPendingFeed();
         successEl.textContent = "Entry saved!"; successEl.classList.remove("hidden");
-        setTimeout(() => { closeForm(); loadDashboard(); }, 1200);
+        setTimeout(() => { closeForm(); loadDashboard();  loadDiaperAlert();}, 1200);
     } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
     finally { submitBtn.disabled = false; submitBtn.textContent = "Save Entry"; }
 }
@@ -499,7 +503,6 @@ async function loadSummary() {
     document.getElementById("firstWeight").textContent = formatGram(data.firstWeight);
     document.getElementById("latestWeight").textContent = formatGram(data.latestWeight);
     document.getElementById("weightGain").textContent = formatGram(data.weightGain);
-    document.getElementById("averageMilk").textContent = formatGram(data.averageMilkG);
 }
 
 async function loadLogs() {
@@ -1142,6 +1145,20 @@ function closeWordForm() {
     document.getElementById("wordForm").reset();
     document.getElementById("wordsList").classList.add("hidden");
     document.getElementById("toggleWordsListButton").textContent = "📋 Show all words";
+}
+
+async function loadDiaperAlert() {
+    const data = await fetch("/api/diaper-alert").then(r => r.json()).catch(() => null);
+    if (!data) return;
+    const banner = document.getElementById("diaperAlertBanner");
+    const { consecutiveDaysWithoutDirty } = data;
+
+    if (consecutiveDaysWithoutDirty >= 1) {
+        banner.className = "diaper-alert-banner alert";
+        banner.textContent = `🚨 kakis pelenka nélküli napok száma: ${consecutiveDaysWithoutDirty} !`;
+    } else {
+        banner.className = "diaper-alert-banner hidden";
+    }
 }
 
 
