@@ -1275,3 +1275,28 @@ async function loadDiaperAlert() {
 }
 
 
+async function initPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) return;
+    const res = await fetch('/api/push-vapid-key').catch(() => null);
+    if (!res || !res.ok) return;
+    const { publicKey } = await res.json();
+    const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: publicKey,
+    });
+    await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub),
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initPushNotifications();
+});
+

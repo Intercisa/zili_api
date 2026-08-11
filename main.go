@@ -2,6 +2,7 @@ package main
 
 import (
         "database/sql"
+        "encoding/json"
         "fmt"
         "log"
         "net/http"
@@ -10,6 +11,7 @@ import (
         "time"
         _ "time/tzdata"
 
+        "github.com/SherClockHolmes/webpush-go"
         "github.com/gin-gonic/gin"
         "github.com/joho/godotenv"
         _ "github.com/lib/pq"
@@ -92,6 +94,7 @@ type Summary struct {
 }
 
 var db *sql.DB
+var vapidPublic, vapidPrivate string
 
 func budapest() *time.Location {
         loc, _ := time.LoadLocation("Europe/Budapest")
@@ -125,8 +128,11 @@ func main() {
         if err != nil {
                 log.Fatal(err)
         }
-
         defer db.Close()
+
+        if err = loadOrGenerateVAPIDKeys(); err != nil {
+                log.Fatal("vapid init failed:", err)
+        }
 
         router := gin.Default()
 
@@ -163,6 +169,8 @@ func main() {
         router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
         router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
         router.GET("/api/events/calendar.ics", getCalendar)
+        router.GET("/api/push-vapid-key", getVapidPublicKey)
+        router.POST("/api/push-subscribe", pushSubscribe)
         router.GET("/api/pending-feed", getPendingFeed)
         router.DELETE("/api/pending-feed/:id", deletePendingFeed)
         router.GET("/api/diaper-alert", getDiaperAlert)
@@ -179,6 +187,7 @@ func main() {
         })
 
         go scheduleWeeklyReport()
+        go scheduleNapReminder()
 
         router.GET("/logs", getLogs)
         router.GET("/logs/:date", getLogByDate)
@@ -1353,3 +1362,131 @@ func getCalendar(c *gin.Context) {
         c.Header("Content-Disposition", "inline; filename=zili.ics")
         c.String(http.StatusOK, sb.String())
 }
+
+func getVapidPublicKey(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"publicKey": vapidPublic})
+}
+
+func pushSubscribe(c *gin.Context) {
+	var sub webpush.Subscription
+	if err := c.ShouldBindJSON(&sub); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	_, err := db.Exec(`
+		INSERT INTO push_subscriptions (endpoint, p256dh, auth)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (endpoint) DO NOTHING
+	`, sub.Endpoint, sub.Keys.P256dh, sub.Keys.Auth)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusCreated)
+}
+
+func sendNapPush() {
+	rows, err := db.Query(`SELECT endpoint, p256dh, auth FROM push_subscriptions`)
+	if err != nil {
+		log.Println("nap push: query subs:", err)
+		return
+	}
+	defer rows.Close()
+	payload, _ := json.Marshal(map[string]string{
+		"title": "😴 Álmos lehet!",
+		"body":  "Több mint 1.5 órája ébren van.",
+	})
+	for rows.Next() {
+		var sub webpush.Subscription
+		rows.Scan(&sub.Endpoint, &sub.Keys.P256dh, &sub.Keys.Auth)
+		resp, err := webpush.SendNotification(payload, &sub, &webpush.Options{
+			VAPIDPublicKey:  vapidPublic,
+			VAPIDPrivateKey: vapidPrivate,
+			TTL:             60,
+		})
+		if err != nil {
+			log.Println("nap push send error:", err)
+			continue
+		}
+		resp.Body.Close()
+		if resp.StatusCode == 410 {
+			db.Exec(`DELETE FROM push_subscriptions WHERE endpoint = $1`, sub.Endpoint)
+		}
+	}
+}
+
+func scheduleNapReminder() {
+	const napThreshold = 90 * time.Minute
+	const checkInterval = 60 * time.Second
+	lastFired := time.Time{}
+
+	for {
+		time.Sleep(checkInterval)
+
+		var lastWakeStr, lastSleepStr sql.NullString
+		db.QueryRow(`
+			SELECT log_date::text || ' ' || log_time::text
+			FROM zili_daily_log
+			WHERE sleep_event = 'woke_up' AND log_time IS NOT NULL
+			ORDER BY log_date DESC, log_time DESC LIMIT 1
+		`).Scan(&lastWakeStr)
+		db.QueryRow(`
+			SELECT log_date::text || ' ' || log_time::text
+			FROM zili_daily_log
+			WHERE sleep_event = 'fell_asleep' AND log_time IS NOT NULL
+			ORDER BY log_date DESC, log_time DESC LIMIT 1
+		`).Scan(&lastSleepStr)
+
+		if !lastWakeStr.Valid {
+			continue
+		}
+		bp := budapest()
+		lastWake, err := time.ParseInLocation("2006-01-02 15:04:05", lastWakeStr.String, bp)
+		if err != nil {
+			continue
+		}
+		// if fell asleep after last wake, kid is sleeping — no reminder needed
+		if lastSleepStr.Valid {
+			lastSleep, err := time.ParseInLocation("2006-01-02 15:04:05", lastSleepStr.String, bp)
+			if err == nil && lastSleep.After(lastWake) {
+				continue
+			}
+		}
+		awake := time.Now().In(bp).Sub(lastWake)
+		if awake < napThreshold {
+			continue
+		}
+		// fire once per wake cycle: only if we haven't fired since this wake event
+		if !lastFired.Before(lastWake) {
+			continue
+		}
+		lastFired = time.Now()
+		go sendNapPush()
+	}
+}
+
+func loadOrGenerateVAPIDKeys() error {
+	pub, priv := "", ""
+	db.QueryRow(`SELECT value FROM app_settings WHERE key = 'vapid_public'`).Scan(&pub)
+	db.QueryRow(`SELECT value FROM app_settings WHERE key = 'vapid_private'`).Scan(&priv)
+	if pub != "" && priv != "" {
+		vapidPublic, vapidPrivate = pub, priv
+		log.Println("VAPID keys loaded from DB")
+		return nil
+	}
+	var err error
+	vapidPrivate, vapidPublic, err = webpush.GenerateVAPIDKeys()
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		INSERT INTO app_settings (key, value) VALUES ('vapid_public', $1), ('vapid_private', $2)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+	`, vapidPublic, vapidPrivate)
+	if err != nil {
+		return err
+	}
+	log.Println("VAPID keys generated and saved to DB")
+	return nil
+}
+
