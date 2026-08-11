@@ -15,14 +15,13 @@ CREATE TABLE IF NOT EXISTS zili_daily_log (
     fed_breast           BOOLEAN DEFAULT FALSE,
     fed_bottle           BOOLEAN DEFAULT FALSE,
     bathed               BOOLEAN DEFAULT FALSE,
-    milestone            BOOLEAN DEFAULT FALSE,
-    pending              BOOLEAN NOT NULL DEFAULT FALSE
+    milestone            BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS vitamin_checks (
-    key     TEXT PRIMARY KEY,
-    checked BOOLEAN NOT NULL DEFAULT FALSE,
-    date    TEXT
+   key     TEXT PRIMARY KEY,
+   checked BOOLEAN NOT NULL DEFAULT FALSE,
+   date    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
@@ -43,6 +42,14 @@ CREATE TABLE IF NOT EXISTS zili_words (
     word       TEXT NOT NULL,
     noted_date DATE NOT NULL DEFAULT CURRENT_DATE,
     notes      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id         SERIAL PRIMARY KEY,
+    endpoint   TEXT NOT NULL UNIQUE,
+    p256dh     TEXT NOT NULL,
+    auth       TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS zili_events (
