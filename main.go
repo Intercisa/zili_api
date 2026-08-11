@@ -412,19 +412,44 @@ func deletePendingFeed(c *gin.Context) {
 func updateLog(c *gin.Context) {
         id := c.Param("id")
         var body struct {
-                DailySummary string   `json:"dailySummary"`
-                LogDate      string   `json:"logDate"`
-                LogTime      *string  `json:"logTime"`
-                HeightCm     *float64 `json:"heightCm"`
-                HeadCm       *float64 `json:"headCm"`
+                DailySummary      string   `json:"dailySummary"`
+                LogDate           string   `json:"logDate"`
+                LogTime           *string  `json:"logTime"`
+                HeightCm          *float64 `json:"heightCm"`
+                HeadCm            *float64 `json:"headCm"`
+                PreFeedWeightG    *int     `json:"preFeedWeightG"`
+                PostFeedWeightG   *int     `json:"postFeedWeightG"`
+                MilkTransferG     *int     `json:"milkTransferG"`
+                StatusWeightG     *int     `json:"statusWeightG"`
+                MeasurementWeightG *int    `json:"measurementWeightG"`
+                FedBreast         bool     `json:"fedBreast"`
+                FedBottle         bool     `json:"fedBottle"`
+                Diaper            *string  `json:"diaper"`
+                SleepEvent        *string  `json:"sleepEvent"`
+                Bathed            bool     `json:"bathed"`
+                Milestone         bool     `json:"milestone"`
         }
         if err := c.ShouldBindJSON(&body); err != nil {
                 c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
                 return
         }
-        _, err := db.Exec(
-                `UPDATE zili_daily_log SET daily_summary = $1, log_date = $2, log_time = $3, height_cm = $4, head_cm = $5 WHERE id = $6`,
-                body.DailySummary, body.LogDate, body.LogTime, body.HeightCm, body.HeadCm, id,
+        _, err := db.Exec(`
+                UPDATE zili_daily_log SET
+                        daily_summary = $1, log_date = $2, log_time = $3,
+                        height_cm = $4, head_cm = $5,
+                        pre_feed_weight_g = $6, post_feed_weight_g = $7, milk_transfer_g = $8,
+                        status_weight_g = $9, measurement_weight_g = $10,
+                        fed_breast = $11, fed_bottle = $12,
+                        diaper = $13, sleep_event = $14,
+                        bathed = $15, milestone = $16
+                WHERE id = $17`,
+                body.DailySummary, body.LogDate, body.LogTime,
+                body.HeightCm, body.HeadCm,
+                body.PreFeedWeightG, body.PostFeedWeightG, body.MilkTransferG,
+                body.StatusWeightG, body.MeasurementWeightG,
+                body.FedBreast, body.FedBottle,
+                body.Diaper, body.SleepEvent,
+                body.Bathed, body.Milestone, id,
         )
         if err != nil {
                 c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
