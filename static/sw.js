@@ -1,5 +1,5 @@
 const CACHE = 'zili-v1';
-const STATIC = ['/static/styles.css', '/static/app.js', '/manifest.json'];
+const STATIC = ['/static/styles.css', '/static/app.js', '/static/manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC)));

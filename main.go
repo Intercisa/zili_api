@@ -131,6 +131,7 @@ func main() {
         router := gin.Default()
 
         router.Static("/static", "./static")
+        router.StaticFile("/sw.js", "./static/sw.js")
 
         router.GET("/", dashboard)
         router.GET("/health", health)
