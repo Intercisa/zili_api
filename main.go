@@ -563,11 +563,9 @@ func getMilkConsumed(c *gin.Context) {
         to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
         from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
         rows, err := db.Query(`
-                SELECT log_date, SUM(post_feed_weight_g - pre_feed_weight_g) as milk_consumed
+                SELECT log_date, SUM(milk_transfer_g) as milk_consumed
                 FROM zili_daily_log
-                WHERE pre_feed_weight_g IS NOT NULL
-                  AND post_feed_weight_g IS NOT NULL
-                  AND post_feed_weight_g > pre_feed_weight_g
+                WHERE milk_transfer_g IS NOT NULL
                   AND log_date BETWEEN $1 AND $2
                 GROUP BY log_date
                 ORDER BY log_date ASC
