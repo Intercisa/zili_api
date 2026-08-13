@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS zili_daily_log (
     fed_breast           BOOLEAN DEFAULT FALSE,
     fed_bottle           BOOLEAN DEFAULT FALSE,
     bathed               BOOLEAN DEFAULT FALSE,
-    pending              BOOLEAN NOT NULL DEFAULT FALSE,
-    milestone            BOOLEAN DEFAULT FALSE
+    milestone            BOOLEAN DEFAULT FALSE,
+    pending              BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS vitamin_checks (
@@ -65,4 +65,3 @@ CREATE TABLE IF NOT EXISTS zili_events (
     recurring    TEXT NOT NULL DEFAULT 'none',
     all_day      BOOLEAN NOT NULL DEFAULT FALSE
 );
-
