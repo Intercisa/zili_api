@@ -140,8 +140,10 @@ func main() {
         router.Static("/static", "./static")
         router.StaticFile("/sw.js", "./static/sw.js")
         router.StaticFile("/manifest.json", "./static/manifest.json")
+        router.StaticFile("/manifest-quick.json", "./static/manifest-quick.json")
 
         router.GET("/", dashboard)
+        router.GET("/quick", func(c *gin.Context) { c.File("./static/quick.html") })
         router.GET("/health", health)
 
         router.GET("/api/logs", getLogs)
@@ -563,7 +565,7 @@ func getMilkConsumed(c *gin.Context) {
         to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
         from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
         rows, err := db.Query(`
-                SELECT log_date, SUM(milk_transfer_g) as milk_consumed
+                SELECT log_date::text, SUM(milk_transfer_g) as milk_consumed
                 FROM zili_daily_log
                 WHERE milk_transfer_g IS NOT NULL
                   AND log_date BETWEEN $1 AND $2
