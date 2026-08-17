@@ -158,7 +158,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("cancelEditButton").addEventListener("click", closeEditForm);
     document.getElementById("editOverlay").addEventListener("click", e => { if (e.target === document.getElementById("editOverlay")) closeEditForm(); });
     document.getElementById("editForm").addEventListener("submit", submitEdit);
-    document.getElementById("openGrowthFormButton").addEventListener("click", openGrowthForm);
     document.getElementById("closeGrowthButton").addEventListener("click", closeGrowthForm);
     document.getElementById("cancelGrowthButton").addEventListener("click", closeGrowthForm);
     document.getElementById("growthOverlay").addEventListener("click", e => { if (e.target === document.getElementById("growthOverlay")) closeGrowthForm(); });
@@ -684,15 +683,41 @@ async function submitEdit(event) {
 }
 
 async function loadDashboard() {
-    await Promise.all([loadSummary(), loadWeightChart(), loadMilkConsumedChart(), loadLogs()]);
+    await Promise.all([loadSummary(), loadLastFeed(), loadWeightChart(), loadMilkConsumedChart(), loadLogs()]);
 }
 
 async function loadSummary() {
     const data = await fetch("/api/summary").then(r => r.json());
     document.getElementById("totalLogs").textContent = data.totalLogs;
-    document.getElementById("firstWeight").textContent = formatGram(data.firstWeight);
     document.getElementById("latestWeight").textContent = formatGram(data.latestWeight);
     document.getElementById("weightGain").textContent = formatGram(data.weightGain);
+}
+
+let _lastFeedSeconds = null;
+let _lastFeedTimer = null;
+
+async function loadLastFeed() {
+    const data = await fetch("/api/last-feed").then(r => r.json()).catch(() => null);
+    if (!data || data.secondsAgo === null) return;
+    _lastFeedSeconds = data.secondsAgo;
+    renderLastFeed();
+    if (_lastFeedTimer) clearInterval(_lastFeedTimer);
+    _lastFeedTimer = setInterval(() => { _lastFeedSeconds++; renderLastFeed(); }, 60000);
+}
+
+function renderLastFeed() {
+    const s = _lastFeedSeconds;
+    if (s === null) return;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const text = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const el = document.getElementById("lastFeedStatus");
+    const card = document.getElementById("lastFeedCard");
+    el.textContent = text;
+    const overdue = s >= 3 * 3600;
+    card.style.background = overdue ? "#fef2f2" : "";
+    card.style.borderColor = overdue ? "#f87171" : "";
+    el.style.color = overdue ? "#dc2626" : "";
 }
 
 async function loadLogs() {
