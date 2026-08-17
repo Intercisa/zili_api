@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS zili_daily_log (
     diaper               TEXT,
     fed_breast           BOOLEAN DEFAULT FALSE,
     fed_bottle           BOOLEAN DEFAULT FALSE,
+    fed_formula          BOOLEAN NOT NULL DEFAULT FALSE,
     bathed               BOOLEAN DEFAULT FALSE,
     milestone            BOOLEAN DEFAULT FALSE,
     pending              BOOLEAN NOT NULL DEFAULT FALSE

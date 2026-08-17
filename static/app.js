@@ -200,11 +200,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     document.getElementById("fedBreast").addEventListener("change", syncQuickTags);
     document.getElementById("fedBottle").addEventListener("change", syncQuickTags);
+    document.getElementById("fedFormula").addEventListener("change", () => {
+        if (document.getElementById("fedFormula").checked) document.getElementById("fedBottle").checked = true;
+        syncQuickTags();
+    });
     document.querySelectorAll(".quick-tag").forEach(cb => cb.addEventListener("change", syncQuickTags));
     document.getElementById("measurementWeightG").addEventListener("input", syncQuickTags);
     document.getElementById("statusWeightG").addEventListener("input", syncQuickTags);
-    document.getElementById("preFeedWeightG").addEventListener("input", syncQuickTags);
-    document.getElementById("postFeedWeightG").addEventListener("input", syncQuickTags);
+    document.getElementById("preFeedWeightG").addEventListener("input", () => {
+        const pre = parseInt(document.getElementById("preFeedWeightG").value);
+        const post = parseInt(document.getElementById("postFeedWeightG").value);
+        const mt = document.getElementById("milkTransferG");
+        if (!isNaN(pre) && !isNaN(post) && post > pre) mt.value = post - pre;
+        else if (mt.value !== "") mt.value = "";
+        syncQuickTags();
+    });
+    document.getElementById("postFeedWeightG").addEventListener("input", () => {
+        const pre = parseInt(document.getElementById("preFeedWeightG").value);
+        const post = parseInt(document.getElementById("postFeedWeightG").value);
+        const mt = document.getElementById("milkTransferG");
+        if (!isNaN(pre) && !isNaN(post) && post > pre) mt.value = post - pre;
+        else if (mt.value !== "") mt.value = "";
+        syncQuickTags();
+    });
 
     const statusTile = document.getElementById("awakeStatus").closest(".summary-card");
     attachLongPress(statusTile, async () => {
@@ -228,9 +246,12 @@ function syncQuickTags() {
     const parts = [];
     const fedBreast = document.getElementById("fedBreast").checked;
     const fedBottle = document.getElementById("fedBottle").checked;
-    if (fedBreast && fedBottle) parts.push("cici, cumisüveg");
+    const fedFormula = document.getElementById("fedFormula").checked;
+    if (fedBreast && fedBottle && fedFormula) parts.push("cici, cumisüveg (formula)");
+    else if (fedBreast && fedBottle) parts.push("cici, cumisüveg (anyatej)");
     else if (fedBreast) parts.push("cici");
-    else if (fedBottle) parts.push("cumisüveg");
+    else if (fedBottle && fedFormula) parts.push("cumisüveg (formula)");
+    else if (fedBottle) parts.push("cumisüveg (anyatej)");
     const pre = document.getElementById("preFeedWeightG").value.trim();
     const post = document.getElementById("postFeedWeightG").value.trim();
     if (pre || post) parts.push(`pre: ${pre || "?"}g, post: ${post || "?"}g`);
@@ -247,9 +268,12 @@ function syncEditQuickTags() {
     const parts = [];
     const fedBreast = document.getElementById("editFedBreast").checked;
     const fedBottle = document.getElementById("editFedBottle").checked;
-    if (fedBreast && fedBottle) parts.push("cici, cumisüveg");
+    const fedFormula = document.getElementById("editFedFormula").checked;
+    if (fedBreast && fedBottle && fedFormula) parts.push("cici, cumisüveg (formula)");
+    else if (fedBreast && fedBottle) parts.push("cici, cumisüveg (anyatej)");
     else if (fedBreast) parts.push("cici");
-    else if (fedBottle) parts.push("cumisüveg");
+    else if (fedBottle && fedFormula) parts.push("cumisüveg (formula)");
+    else if (fedBottle) parts.push("cumisüveg (anyatej)");
     const pre = document.getElementById("editPreFeedWeightG").value.trim();
     const post = document.getElementById("editPostFeedWeightG").value.trim();
     if (pre || post) parts.push(`pre: ${pre || "?"}g, post: ${post || "?"}g`);
@@ -324,6 +348,9 @@ async function openForm(restorePending = false) {
     } else {
         const now = new Date();
         document.getElementById("logTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+        document.getElementById("fedBreast").checked = false;
+        document.getElementById("fedBottle").checked = false;
+        document.getElementById("fedFormula").checked = false;
     }
     syncQuickTags();
 }
@@ -457,7 +484,13 @@ async function submitEntry(event) {
     const isMilkCat = !document.getElementById("catMilk").classList.contains("hidden");
     const fedBreast = document.getElementById("fedBreast").checked;
     const fedBottle = document.getElementById("fedBottle").checked;
-    if (isMilkCat && (pre !== null || post !== null) && !fedBreast && !fedBottle) {
+    const fedFormula = document.getElementById("fedFormula").checked;
+    if (isMilkCat && fedBottle && !fedBreast && !fedFormula) {
+        errorEl.textContent = "Bottle requires breast or formula to be selected too.";
+        errorEl.classList.remove("hidden");
+        return;
+    }
+    if (isMilkCat && (pre !== null || post !== null) && !fedBreast && !fedBottle && !fedFormula) {
         errorEl.textContent = "Please select at least one feeding source (breast or bottle).";
         errorEl.classList.remove("hidden");
         return;
@@ -465,7 +498,7 @@ async function submitEntry(event) {
     if (isMilkCat && (pre !== null || post !== null) && !(pre !== null && post !== null)) {
         const pending = {
             logDate: getValue("logDate"), logTime: getValue("logTime"),
-            preFeedWeightG: pre, postFeedWeightG: post, fedBreast, fedBottle,
+            preFeedWeightG: pre, postFeedWeightG: post, fedBreast, fedBottle, fedFormula,
             statusWeightG: getValue("statusWeightG"),
             measurementWeightG: getValue("measurementWeightG"),
             dailySummary: getValue("dailySummary"),
@@ -479,12 +512,16 @@ async function submitEntry(event) {
     }
     const submitBtn = event.target.querySelector("button[type=submit]");
     submitBtn.disabled = true; submitBtn.textContent = "Saving...";
-    const milkTransfer = (pre !== null && post !== null && post > pre) ? post - pre : null;
+    const milkTransfer = (() => {
+        const manual = getInt("milkTransferG");
+        if (manual !== null) return manual;
+        return (pre !== null && post !== null && post > pre) ? post - pre : null;
+    })();
     const payload = {
         logDate: getValue("logDate"), logTime: getValue("logTime"), dailySummary: getValue("dailySummary") || "",
         statusWeightG: getInt("statusWeightG"), preFeedWeightG: pre, postFeedWeightG: post,
         milkTransferG: milkTransfer, heightCm: null, headCm: null, measurementWeightG: getInt("measurementWeightG"),
-        fedBreast, fedBottle,
+        fedBreast, fedBottle, fedFormula,
         diaper: (() => {
             const kakis = [...document.querySelectorAll(".quick-tag:checked")].some(cb => cb.value === "kakis pelus");
             const pisis = [...document.querySelectorAll(".quick-tag:checked")].some(cb => cb.value === "pisis pelus");
@@ -530,8 +567,10 @@ function openEditForm(item) {
     document.getElementById("editPostFeedWeightG").value = item.postFeedWeightG ?? "";
     document.getElementById("editStatusWeightG").value = item.statusWeightG ?? "";
     document.getElementById("editMeasurementWeightG").value = item.measurementWeightG ?? "";
+    document.getElementById("editMilkTransferG").value = item.milkTransferG ?? "";
     document.getElementById("editFedBreast").checked = item.fedBreast || false;
     document.getElementById("editFedBottle").checked = item.fedBottle || false;
+    document.getElementById("editFedFormula").checked = item.fedFormula || false;
     const diaper = item.diaper || "";
     const bathed = item.bathed || false;
     const milestone = item.milestone || false;
@@ -549,8 +588,22 @@ function openEditForm(item) {
     document.getElementById("editDailySummary").value = item.dailySummary || "";
     document.getElementById("editFedBreast").onchange = syncEditQuickTags;
     document.getElementById("editFedBottle").onchange = syncEditQuickTags;
-    document.getElementById("editPreFeedWeightG").oninput = syncEditQuickTags;
-    document.getElementById("editPostFeedWeightG").oninput = syncEditQuickTags;
+    document.getElementById("editFedFormula").onchange = () => {
+        if (document.getElementById("editFedFormula").checked) document.getElementById("editFedBottle").checked = true;
+        syncEditQuickTags();
+    };
+    document.getElementById("editPreFeedWeightG").oninput = () => {
+        const pre = parseInt(document.getElementById("editPreFeedWeightG").value);
+        const post = parseInt(document.getElementById("editPostFeedWeightG").value);
+        const mt = document.getElementById("editMilkTransferG");
+        if (mt.value === "" && !isNaN(pre) && !isNaN(post) && post > pre) mt.value = post - pre;
+    };
+    document.getElementById("editPostFeedWeightG").oninput = () => {
+        const pre = parseInt(document.getElementById("editPreFeedWeightG").value);
+        const post = parseInt(document.getElementById("editPostFeedWeightG").value);
+        const mt = document.getElementById("editMilkTransferG");
+        if (mt.value === "" && !isNaN(pre) && !isNaN(post) && post > pre) mt.value = post - pre;
+    };
     document.getElementById("editStatusWeightG").oninput = syncEditQuickTags;
     document.getElementById("editMeasurementWeightG").oninput = syncEditQuickTags;
 }
@@ -575,7 +628,20 @@ async function submitEdit(event) {
     const getFloat = id => { const v = getVal(id); return v === null ? null : parseFloat(v); };
     const pre = getInt("editPreFeedWeightG");
     const post = getInt("editPostFeedWeightG");
-    const milkTransfer = (pre !== null && post !== null && post > pre) ? post - pre : null;
+    const milkTransfer = (() => {
+        const manual = getInt("editMilkTransferG");
+        if (manual !== null) return manual;
+        return (pre !== null && post !== null && post > pre) ? post - pre : null;
+    })();
+    const fedBreastE = document.getElementById("editFedBreast").checked;
+    const fedBottleE = document.getElementById("editFedBottle").checked;
+    const fedFormulaE = document.getElementById("editFedFormula").checked;
+    if (fedBottleE && !fedBreastE && !fedFormulaE) {
+        errorEl.textContent = "Bottle requires breast or formula to be selected too.";
+        errorEl.classList.remove("hidden");
+        submitBtn.disabled = false; submitBtn.textContent = "Save Changes";
+        return;
+    }
     const kakis = [...document.querySelectorAll(".edit-quick-tag:checked")].some(cb => cb.value === "kakis pelus");
     const pisis = [...document.querySelectorAll(".edit-quick-tag:checked")].some(cb => cb.value === "pisis pelus");
     const checked = [...document.querySelectorAll(".edit-quick-tag:checked")].map(cb => cb.value);
@@ -590,8 +656,9 @@ async function submitEdit(event) {
         milkTransferG: milkTransfer,
         statusWeightG: getInt("editStatusWeightG"),
         measurementWeightG: getInt("editMeasurementWeightG"),
-        fedBreast: document.getElementById("editFedBreast").checked,
-        fedBottle: document.getElementById("editFedBottle").checked,
+        fedBreast: fedBreastE,
+        fedBottle: fedBottleE,
+        fedFormula: fedFormulaE,
         diaper: kakis && pisis ? "both" : kakis ? "dirty" : pisis ? "wet" : null,
         sleepEvent: checked.includes("ébredt") ? "woke_up" : (checked.includes("elaludt") || checked.includes("cicin elaludt")) ? "fell_asleep" : null,
         bathed: checked.includes("fürcsi"),

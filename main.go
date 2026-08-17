@@ -33,6 +33,7 @@ type DailyLog struct {
         Diaper            *string  `json:"diaper"`
         FedBreast         bool     `json:"fedBreast"`
         FedBottle         bool     `json:"fedBottle"`
+        FedFormula        bool     `json:"fedFormula"`
         Bathed            bool     `json:"bathed"`
         Milestone         bool     `json:"milestone"`
         Pending           bool     `json:"pending"`
@@ -245,7 +246,7 @@ func getLogs(c *gin.Context) {
                 SELECT id, log_date, log_time, daily_summary, status_weight_g,
                        pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
                        height_cm, head_cm, measurement_weight_g,
-                       sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone
+                       sleep_event, diaper, fed_breast, fed_bottle, fed_formula, bathed, milestone
                 FROM zili_daily_log
                 WHERE ($3 = '' OR daily_summary ILIKE '%' || $3 || '%')
                 ORDER BY log_date DESC, COALESCE(log_time, '00:00') DESC, id DESC
@@ -267,7 +268,7 @@ func getLogs(c *gin.Context) {
                         &entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
                         &entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
                         &entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
-                        &sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.Bathed, &entry.Milestone,
+                        &sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.FedFormula, &entry.Bathed, &entry.Milestone,
                 )
                 if err != nil {
                         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -303,7 +304,7 @@ func getLogByDate(c *gin.Context) {
                 SELECT id, log_date, log_time, daily_summary, status_weight_g,
                        pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
                        height_cm, head_cm, measurement_weight_g,
-                       sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone
+                       sleep_event, diaper, fed_breast, fed_bottle, fed_formula, bathed, milestone
                 FROM zili_daily_log
                 WHERE log_date = $1
                 ORDER BY COALESCE(log_time, '00:00'), id
@@ -324,7 +325,7 @@ func getLogByDate(c *gin.Context) {
                         &entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
                         &entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
                         &entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
-                        &sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.Bathed, &entry.Milestone,
+                        &sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.FedFormula, &entry.Bathed, &entry.Milestone,
                 )
                 if err != nil {
                         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -362,14 +363,14 @@ func createLog(c *gin.Context) {
                         log_date, log_time, daily_summary, status_weight_g,
                         pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
                         height_cm, head_cm, measurement_weight_g,
-                        sleep_event, diaper, fed_breast, fed_bottle, bathed, milestone, pending
-                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                        sleep_event, diaper, fed_breast, fed_bottle, fed_formula, bathed, milestone, pending
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
                 RETURNING id
         `,
                 entry.LogDate, entry.LogTime, entry.DailySummary,
                 entry.StatusWeightG, entry.PreFeedWeightG, entry.PostFeedWeightG,
                 entry.MilkTransferG, entry.HeightCm, entry.HeadCm, entry.MeasurementWeight,
-                entry.SleepEvent, entry.Diaper, entry.FedBreast, entry.FedBottle, entry.Bathed, entry.Milestone, entry.Pending,
+                entry.SleepEvent, entry.Diaper, entry.FedBreast, entry.FedBottle, entry.FedFormula, entry.Bathed, entry.Milestone, entry.Pending,
         ).Scan(&id)
         if err != nil {
                 c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -435,6 +436,7 @@ func updateLog(c *gin.Context) {
                 MeasurementWeightG *int    `json:"measurementWeightG"`
                 FedBreast         bool     `json:"fedBreast"`
                 FedBottle         bool     `json:"fedBottle"`
+                FedFormula        bool     `json:"fedFormula"`
                 Diaper            *string  `json:"diaper"`
                 SleepEvent        *string  `json:"sleepEvent"`
                 Bathed            bool     `json:"bathed"`
@@ -450,15 +452,15 @@ func updateLog(c *gin.Context) {
                         height_cm = $4, head_cm = $5,
                         pre_feed_weight_g = $6, post_feed_weight_g = $7, milk_transfer_g = $8,
                         status_weight_g = $9, measurement_weight_g = $10,
-                        fed_breast = $11, fed_bottle = $12,
-                        diaper = $13, sleep_event = $14,
-                        bathed = $15, milestone = $16
-                WHERE id = $17`,
+                        fed_breast = $11, fed_bottle = $12, fed_formula = $13,
+                        diaper = $14, sleep_event = $15,
+                        bathed = $16, milestone = $17
+                WHERE id = $18`,
                 body.DailySummary, body.LogDate, body.LogTime,
                 body.HeightCm, body.HeadCm,
                 body.PreFeedWeightG, body.PostFeedWeightG, body.MilkTransferG,
                 body.StatusWeightG, body.MeasurementWeightG,
-                body.FedBreast, body.FedBottle,
+                body.FedBreast, body.FedBottle, body.FedFormula,
                 body.Diaper, body.SleepEvent,
                 body.Bathed, body.Milestone, id,
         )
@@ -561,11 +563,9 @@ func getMilkConsumed(c *gin.Context) {
         to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
         from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
         rows, err := db.Query(`
-                SELECT log_date, SUM(post_feed_weight_g - pre_feed_weight_g) as milk_consumed
+                SELECT log_date, SUM(milk_transfer_g) as milk_consumed
                 FROM zili_daily_log
-                WHERE pre_feed_weight_g IS NOT NULL
-                  AND post_feed_weight_g IS NOT NULL
-                  AND post_feed_weight_g > pre_feed_weight_g
+                WHERE milk_transfer_g IS NOT NULL
                   AND log_date BETWEEN $1 AND $2
                 GROUP BY log_date
                 ORDER BY log_date ASC
