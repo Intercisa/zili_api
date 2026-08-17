@@ -20,9 +20,9 @@ CREATE TABLE IF NOT EXISTS zili_daily_log (
 );
 
 CREATE TABLE IF NOT EXISTS vitamin_checks (
-    key     TEXT PRIMARY KEY,
-    checked BOOLEAN NOT NULL DEFAULT FALSE,
-    date    TEXT
+   key     TEXT PRIMARY KEY,
+   checked BOOLEAN NOT NULL DEFAULT FALSE,
+   date    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (
@@ -45,6 +45,14 @@ CREATE TABLE IF NOT EXISTS zili_words (
     notes      TEXT
 );
 
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id         SERIAL PRIMARY KEY,
+    endpoint   TEXT NOT NULL UNIQUE,
+    p256dh     TEXT NOT NULL,
+    auth       TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS zili_events (
     id           SERIAL PRIMARY KEY,
     title        TEXT NOT NULL,
@@ -57,4 +65,3 @@ CREATE TABLE IF NOT EXISTS zili_events (
     recurring    TEXT NOT NULL DEFAULT 'none',
     all_day      BOOLEAN NOT NULL DEFAULT FALSE
 );
-

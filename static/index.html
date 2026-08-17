@@ -27,6 +27,7 @@
 </header>
 
 <div id="diaperAlertBanner" class="diaper-alert-banner hidden"></div>
+<button id="pushEnableBtn" class="btn-secondary hidden" onclick="subscribeToPush().then(ok => { if(ok) this.classList.add('hidden'); })">🔔 Enable notifications</button>
 
 <div class="vitamin-reminders">
     <label class="reminder-item">
