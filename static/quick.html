@@ -147,11 +147,12 @@
 
         /* flash on success */
         @keyframes btnFlash {
-            0%   { filter: brightness(1); }
-            40%  { filter: brightness(1.25); }
-            100% { filter: brightness(1); }
+            0%   { background: var(--card); }
+            30%  { background: #bbf7d0; }
+            100% { background: var(--card); }
         }
-        .quick-btn.flash { animation: btnFlash 0.35s ease; }
+        .quick-btn.flash { animation: btnFlash 0.5s ease; }
+        #btnSleep.flash { animation: none; }
 
         /* Toast */
         .toast {
