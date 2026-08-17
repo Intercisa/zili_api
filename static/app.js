@@ -8,6 +8,16 @@ let logsLoading = false;
 
 const PENDING_FEED_KEY = "zili_pending_feed";
 
+function localDateStr(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function localDaysAgo(n) {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return localDateStr(d);
+}
+
 async function savePendingFeed(data) {
     const payload = {
         logDate: data.logDate, logTime: data.logTime,
@@ -59,9 +69,9 @@ async function renderPendingBanner() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const today = new Date().toISOString().split("T")[0];
-    const weekAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const monthAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const today = localDateStr();
+    const weekAgo = localDaysAgo(6);
+    const monthAgo = localDaysAgo(29);
     document.getElementById("milkFromDate").value = weekAgo;
     document.getElementById("milkToDate").value = today;
     document.getElementById("milkDateApply").addEventListener("click", loadMilkConsumedChart);
@@ -171,13 +181,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!word) return;
         await fetch("/api/words", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ word, notedDate, notes }) });
         document.getElementById("wordForm").reset();
-        document.getElementById("wordDateInput").value = new Date().toISOString().split("T")[0];
+        document.getElementById("wordDateInput").value = localDateStr();
         loadWordOfTheDay();
     });
     document.getElementById("logDate").value = today;
     document.getElementById("growthDate").value = today;
     document.getElementById("dVitaminCheck").addEventListener("change", e => {
-        const date = new Date().toISOString().slice(0, 10);
+        const date = localDateStr();
         saveVitamin("d-vitamin", e.target.checked, date);
         if (e.target.checked) e.target.disabled = true;
     });
@@ -227,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusTile = document.getElementById("awakeStatus").closest(".summary-card");
     attachLongPress(statusTile, async () => {
         const now = new Date();
-        const logDate = now.toISOString().split("T")[0];
+        const logDate = localDateStr(now);
         const logTime = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
         const isSleep = statusTile.dataset.currentState === "sleep";
         const sleepEvent = isSleep ? "woke_up" : "fell_asleep";
@@ -288,7 +298,7 @@ function syncEditQuickTags() {
 
 async function loadVitamins() {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = localDateStr(today);
     const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
     const data = await fetch("/api/vitamins").then(r => r.json()).catch(() => ({}));
     const dEl = document.getElementById("dVitaminCheck");
@@ -331,7 +341,7 @@ async function openForm(restorePending = false) {
     document.getElementById("catMilk").classList.remove("hidden");
     const pending = restorePending ? await loadPendingFeed() : null;
     if (pending) {
-        document.getElementById("logDate").value = pending.logDate || new Date().toISOString().split("T")[0];
+        document.getElementById("logDate").value = pending.logDate || localDateStr();
         document.getElementById("logTime").value = pending.logTime || "";
         document.getElementById("preFeedWeightG").value = pending.preFeedWeightG ?? "";
         document.getElementById("postFeedWeightG").value = pending.postFeedWeightG ?? "";
@@ -363,7 +373,7 @@ function closeForm() {
     document.getElementById("dailySummary").value = "";
     document.getElementById("formError").classList.add("hidden");
     document.getElementById("formSuccess").classList.add("hidden");
-    document.getElementById("logDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("logDate").value = localDateStr();
     document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
     document.querySelector(".cat-btn[data-cat='milk']").classList.add("active");
     document.querySelectorAll(".cat-panel").forEach(p => p.classList.add("hidden"));
@@ -383,7 +393,7 @@ function closeGrowthForm() {
     document.getElementById("growthForm").reset();
     document.getElementById("growthError").classList.add("hidden");
     document.getElementById("growthSuccess").classList.add("hidden");
-    document.getElementById("growthDate").value = new Date().toISOString().split("T")[0];
+    document.getElementById("growthDate").value = localDateStr();
 }
 
 async function submitGrowth(event) {
@@ -465,7 +475,7 @@ async function submitEntry(event) {
     if (isWordsCat) {
         const word = document.getElementById("entryWordInput").value.trim();
         if (!word) { errorEl.textContent = "Please enter a word or sound."; errorEl.classList.remove("hidden"); return; }
-        const notedDate = getValue("logDate") || new Date().toISOString().split("T")[0];
+        const notedDate = getValue("logDate") || localDateStr();
         const notes = document.getElementById("entryWordNotes").value.trim() || null;
         const submitBtn = event.target.querySelector("button[type=submit]");
         submitBtn.disabled = true; submitBtn.textContent = "Saving...";
@@ -1042,7 +1052,7 @@ function openEventForm(event = null) {
         document.querySelector(".modal-header h2").textContent = "📅 Edit Event";
     } else {
         document.getElementById("eventId").value = "";
-        document.getElementById("eventDate").value = now.toISOString().split("T")[0];
+        document.getElementById("eventDate").value = localDateStr(now);
         document.getElementById("eventTime").value = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
         document.getElementById("eventDuration").value = 60;
         document.getElementById("eventRecurring").value = "none";
@@ -1317,7 +1327,7 @@ async function toggleWordsList() {
 
 function openWordForm() {
     document.getElementById("wordOverlay").classList.remove("hidden");
-    document.getElementById("wordDateInput").value = new Date().toISOString().split("T")[0];
+    document.getElementById("wordDateInput").value = localDateStr();
 }
 
 function closeWordForm() {

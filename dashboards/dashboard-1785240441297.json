@@ -70,7 +70,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) AS \"cici count\"\nFROM public.zili_daily_log\nWHERE fed_breast = true OR fed_bottle = true\nGROUP BY log_date\nORDER BY log_date;\n",
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) AS \"cici count\"\nFROM public.zili_daily_log\nWHERE (fed_breast = true OR fed_bottle = true OR fed_formula = true)\nGROUP BY log_date\nORDER BY log_date;\n",
 												"sql": {
 													"columns": [
 														{
@@ -215,7 +215,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT AVG(daily_count) AS \"avg feedings/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM public.zili_daily_log\n  WHERE fed_breast = true OR fed_bottle = true\n  GROUP BY log_date\n) sub;\n\n",
+												"rawSql": "SELECT AVG(daily_count) AS \"avg feedings/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM public.zili_daily_log\n  WHERE (fed_breast = true OR fed_bottle = true OR fed_formula = true)\n  GROUP BY log_date\n) sub;\n\n",
 												"sql": {
 													"columns": [
 														{
@@ -317,7 +317,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT\n  log_date AS \"time\",\n  MAX(log_time) AS \"last_elaludt\"\nFROM public.zili_daily_log\nWHERE sleep_event = 'fell_asleep'\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n\n",
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  MAX(log_time) AS \"last_elaludt\"\nFROM public.zili_daily_log\nWHERE daily_summary ILIKE '%elaludt%'\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n\n",
 												"sql": {
 													"columns": [
 														{
@@ -416,7 +416,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM last_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg last elaludt\"\nFROM (\n  SELECT MAX(log_time) AS last_t\n  FROM zili_daily_log\n  WHERE sleep_event = 'fell_asleep'\n    AND log_time IS NOT NULL\n    AND log_date < (SELECT MAX(log_date) FROM zili_daily_log)\n  GROUP BY log_date\n) sub;\n",
+												"rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM last_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg last elaludt\"\nFROM (\n  SELECT MAX(log_time) AS last_t\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%elaludt%'\n    AND log_time IS NOT NULL\n    AND log_date < (SELECT MAX(log_date) FROM zili_daily_log)\n  GROUP BY log_date\n) sub;\n",
 												"sql": {
 													"columns": [
 														{
@@ -516,7 +516,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM first_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg first ébredt\"\nFROM (\n  SELECT MIN(log_time) AS first_t\n  FROM zili_daily_log\n  WHERE sleep_event = 'woke_up'\n    AND log_time IS NOT NULL\n  GROUP BY log_date\n) sub;\n",
+												"rawSql": "SELECT\n  TO_CHAR(\n    (AVG(EXTRACT(EPOCH FROM first_t)) * interval '1 second'),\n    'HH24:MI'\n  ) AS \"avg first ébredt\"\nFROM (\n  SELECT MIN(log_time) AS first_t\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%ébredt%'\n    AND log_time IS NOT NULL\n  GROUP BY log_date\n) sub;\n",
 												"sql": {
 													"columns": [
 														{
@@ -616,7 +616,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg pisis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE diaper IN ('wet', 'both')\n  GROUP BY log_date\n) sub;\n",
+												"rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg pisis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%pisis pelus%'\n  GROUP BY log_date\n) sub;\n",
 												"sql": {
 													"columns": [
 														{
@@ -718,7 +718,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg kakis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE diaper IN ('dirty', 'both')\n  GROUP BY log_date\n) sub;\n",
+												"rawSql": "SELECT ROUND(AVG(daily_count), 1) AS \"avg kakis pelus/day\"\nFROM (\n  SELECT log_date, COUNT(*) AS daily_count\n  FROM zili_daily_log\n  WHERE daily_summary ILIKE '%kakis pelus%'\n  GROUP BY log_date\n) sub;\n",
 												"sql": {
 													"columns": [
 														{
@@ -820,7 +820,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) FILTER (WHERE diaper IN ('dirty', 'both')) AS \"kakis pelus\",\n  COUNT(*) FILTER (WHERE diaper IN ('wet', 'both')) AS \"pisis pelus\"\nFROM zili_daily_log\nGROUP BY log_date\nORDER BY log_date;\n",
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  COUNT(*) FILTER (WHERE daily_summary ILIKE '%kaki%') AS \"kakis pelus\",\n  COUNT(*) FILTER (WHERE daily_summary ILIKE '%pisi%') AS \"pisis pelus\"\nFROM zili_daily_log\nGROUP BY log_date\nORDER BY log_date;\n",
 												"sql": {
 													"columns": [
 														{
@@ -958,7 +958,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT\n  log_date AS \"time\",\n  EXTRACT(EPOCH FROM MIN(CASE WHEN sleep_event = 'woke_up' THEN log_time END)) AS \"first ébredt (sec)\",\n  EXTRACT(EPOCH FROM MAX(CASE WHEN sleep_event = 'fell_asleep' THEN log_time END)) AS \"last elaludt (sec)\"\nFROM zili_daily_log\nWHERE sleep_event IS NOT NULL\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n",
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  EXTRACT(EPOCH FROM MIN(CASE WHEN daily_summary ILIKE '%ébredt%' THEN log_time END)) AS \"first ébredt (sec)\",\n  EXTRACT(EPOCH FROM MAX(CASE WHEN daily_summary ILIKE '%elaludt%' THEN log_time END)) AS \"last elaludt (sec)\"\nFROM zili_daily_log\nWHERE (daily_summary ILIKE '%ébredt%' OR daily_summary ILIKE '%elaludt%')\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n",
 												"sql": {
 													"columns": [
 														{
@@ -1093,7 +1093,7 @@
 												"editorMode": "code",
 												"format": "table",
 												"rawQuery": true,
-												"rawSql": "SELECT\n  log_date AS \"time\",\n  MIN(log_time) AS \"first_ébredt\"\nFROM public.zili_daily_log\nWHERE sleep_event = 'woke_up'\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n",
+												"rawSql": "SELECT\n  log_date AS \"time\",\n  MIN(log_time) AS \"first_ébredt\"\nFROM public.zili_daily_log\nWHERE daily_summary ILIKE '%ébredt%'\n  AND log_time IS NOT NULL\nGROUP BY log_date\nORDER BY log_date;\n",
 												"sql": {
 													"columns": [
 														{
