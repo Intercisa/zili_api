@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/smtp"
 	"strings"
 	"time"
@@ -437,6 +438,407 @@ func formatReport(r *weeklyReport) string {
 	return sb.String()
 }
 
+type monthlyReport struct {
+	weeklyReport
+	AvgBedtimeMin int
+}
+
+func buildMonthlyReport() (*monthlyReport, error) {
+	bp := budapest()
+	now := time.Now().In(bp)
+
+	// from: previous month's 21st, to: this month's 21st
+	this21 := time.Date(now.Year(), now.Month(), 21, 0, 0, 0, 0, bp)
+	prev21 := this21.AddDate(0, -1, 0)
+	from := prev21.Format("2006-01-02")
+	to := this21.Format("2006-01-02")
+
+	r := &monthlyReport{}
+	r.From = from
+	r.To = to
+
+	// Age
+	var birthDateStr string
+	db.QueryRow(`SELECT value FROM app_settings WHERE key = 'birth-date'`).Scan(&birthDateStr)
+	if birthDateStr != "" {
+		birthDate, err := time.ParseInLocation("2006-01-02", birthDateStr, bp)
+		if err == nil {
+			d := int(now.Sub(birthDate).Hours() / 24)
+			r.AgeWeeks = d / 7
+			r.AgeDays = d % 7
+		}
+	}
+
+	// Feeding
+	feedSumRows, err := db.Query(`
+		SELECT
+			COALESCE(SUM(milk_transfer_g), 0),
+			COUNT(*),
+			SUM(CASE WHEN fed_breast THEN 1 ELSE 0 END),
+			SUM(CASE WHEN fed_bottle THEN 1 ELSE 0 END)
+		FROM zili_daily_log
+		WHERE milk_transfer_g IS NOT NULL
+		  AND log_date BETWEEN $1 AND $2
+	`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer feedSumRows.Close()
+	if feedSumRows.Next() {
+		feedSumRows.Scan(&r.TotalMilkG, &r.FeedCount, &r.BreastCount, &r.BottleCount)
+	}
+	if r.FeedCount > 0 {
+		r.AvgMilkPerFeedG = r.TotalMilkG / r.FeedCount
+	}
+
+	// Longest gap between feedings
+	feedRows, err := db.Query(`
+		SELECT log_date::text, log_time::text FROM zili_daily_log
+		WHERE milk_transfer_g IS NOT NULL
+		  AND log_date BETWEEN $1 AND $2
+		  AND log_time IS NOT NULL
+		ORDER BY log_date, log_time
+	`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer feedRows.Close()
+	var feedTimes []time.Time
+	for feedRows.Next() {
+		var d, t string
+		feedRows.Scan(&d, &t)
+		if len(d) > 10 { d = d[:10] }
+		if len(t) > 5 { t = t[:5] }
+		ft, err := time.ParseInLocation("2006-01-02 15:04", d+" "+t, bp)
+		if err == nil {
+			feedTimes = append(feedTimes, ft)
+		}
+	}
+	for i := 1; i < len(feedTimes); i++ {
+		if gap := feedTimes[i].Sub(feedTimes[i-1]).Hours(); gap > r.LongestFeedGapH {
+			r.LongestFeedGapH = gap
+		}
+	}
+
+	// Sleep
+	sleepRows, err := db.Query(`
+		SELECT log_date::text, log_time::text, sleep_event
+		FROM zili_daily_log
+		WHERE log_time IS NOT NULL
+		  AND sleep_event IS NOT NULL
+		  AND log_date BETWEEN $1::date - INTERVAL '1 day' AND $2::date
+		ORDER BY log_date, log_time
+	`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer sleepRows.Close()
+	var sleepLogs []sleepLog
+	for sleepRows.Next() {
+		var l sleepLog
+		var event string
+		sleepRows.Scan(&l.Date, &l.Time, &event)
+		if len(l.Date) > 10 { l.Date = l.Date[:10] }
+		if len(l.Time) > 5 { l.Time = l.Time[:5] }
+		if event == "fell_asleep" { l.Summary = "elaludt" }
+		if event == "woke_up" { l.Summary = "ébredt" }
+		sleepLogs = append(sleepLogs, l)
+	}
+	sleepResult := calcSleepAwake(sleepLogs, from, to, now)
+	for _, d := range sleepResult {
+		r.TotalSleepMin += d.SleepMin
+		r.TotalAwakeMin += d.AwakeMin
+	}
+	toTime := func(date, t string) time.Time {
+		dt, _ := time.ParseInLocation("2006-01-02 15:04", date+" "+t, bp)
+		return dt
+	}
+	var sleepStart *time.Time
+	var sessionCount int
+	var bedtimeMinutes []int
+	for _, l := range sleepLogs {
+		if l.Summary == "elaludt" && sleepStart == nil {
+			t := toTime(l.Date, l.Time)
+			sleepStart = &t
+			if h, m, err2 := parseHHMM(l.Time); err2 == nil {
+				bedtimeMinutes = append(bedtimeMinutes, h*60+m)
+			}
+		} else if l.Summary == "ébredt" && sleepStart != nil {
+			wt := toTime(l.Date, l.Time)
+			if dur := int(wt.Sub(*sleepStart).Minutes()); dur > r.LongestSleepMin {
+				r.LongestSleepMin = dur
+			}
+			sessionCount++
+			sleepStart = nil
+		}
+	}
+	if sessionCount > 0 {
+		r.AvgSleepSessionMin = r.TotalSleepMin / sessionCount
+	}
+	if len(bedtimeMinutes) > 0 {
+		sum := 0
+		for _, m := range bedtimeMinutes {
+			// normalize: treat 00:00–05:59 as next-day (add 24h) so midnight-crossers average correctly
+			if m < 360 {
+				m += 1440
+			}
+			sum += m
+		}
+		r.AvgBedtimeMin = (sum / len(bedtimeMinutes)) % 1440
+	}
+
+	// Weight
+	var latestWeight sql.NullInt64
+	db.QueryRow(`
+		SELECT measurement_weight_g FROM zili_daily_log
+		WHERE measurement_weight_g IS NOT NULL AND log_date BETWEEN $1 AND $2
+		ORDER BY log_date DESC, id DESC LIMIT 1
+	`, from, to).Scan(&latestWeight)
+	if latestWeight.Valid {
+		v := int(latestWeight.Int64)
+		r.LatestWeight = &v
+		var prevWeight sql.NullInt64
+		db.QueryRow(`
+			SELECT measurement_weight_g FROM zili_daily_log
+			WHERE measurement_weight_g IS NOT NULL AND log_date < $1
+			ORDER BY log_date DESC, id DESC LIMIT 1
+		`, from).Scan(&prevWeight)
+		if prevWeight.Valid {
+			gain := v - int(prevWeight.Int64)
+			r.WeightGainG = &gain
+		}
+		ageMonths := (r.AgeWeeks*7 + r.AgeDays) * 10 / 304
+		r.WHOStatus = whoWeightStatus(v, ageMonths)
+	}
+
+	// Diapers
+	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE diaper = 'wet' AND log_date BETWEEN $1 AND $2`, from, to).Scan(&r.WetCount)
+	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE diaper = 'dirty' AND log_date BETWEEN $1 AND $2`, from, to).Scan(&r.DirtyCount)
+	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE diaper = 'both' AND log_date BETWEEN $1 AND $2`, from, to).Scan(&r.BothCount)
+	dirtyRows, err := db.Query(`
+		SELECT DISTINCT log_date::text FROM zili_daily_log
+		WHERE diaper IN ('dirty', 'both')
+		ORDER BY log_date DESC LIMIT 60
+	`)
+	if err == nil {
+		dirtyDays := map[string]bool{}
+		for dirtyRows.Next() {
+			var d string
+			dirtyRows.Scan(&d)
+			if len(d) > 10 { d = d[:10] }
+			dirtyDays[d] = true
+		}
+		dirtyRows.Close()
+		for i := 0; i < 60; i++ {
+			day := now.AddDate(0, 0, -i).Format("2006-01-02")
+			if dirtyDays[day] { break }
+			r.DaysWithoutDirty++
+		}
+	}
+
+	// Baths
+	db.QueryRow(`SELECT COUNT(*) FROM zili_daily_log WHERE bathed = true AND log_date BETWEEN $1 AND $2`, from, to).Scan(&r.BathCount)
+
+	// Milestones
+	mRows, err := db.Query(`
+		SELECT daily_summary FROM zili_daily_log
+		WHERE milestone = true AND log_date BETWEEN $1 AND $2
+		ORDER BY log_date, log_time
+	`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer mRows.Close()
+	for mRows.Next() {
+		var s string
+		mRows.Scan(&s)
+		r.Milestones = append(r.Milestones, s)
+	}
+
+	// Events this period
+	eRows, err := db.Query(`
+		SELECT title, event_date::text FROM zili_events
+		WHERE event_date BETWEEN $1 AND $2
+		ORDER BY event_date
+	`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer eRows.Close()
+	for eRows.Next() {
+		var title, date string
+		eRows.Scan(&title, &date)
+		if len(date) > 10 { date = date[:10] }
+		r.Events = append(r.Events, fmt.Sprintf("%s — %s", date, title))
+	}
+
+	// Upcoming events next month
+	nextFrom := this21.AddDate(0, 0, 1).Format("2006-01-02")
+	nextTo := this21.AddDate(0, 1, 0).Format("2006-01-02")
+	nRows, err := db.Query(`
+		SELECT title, event_date::text FROM zili_events
+		WHERE event_date BETWEEN $1 AND $2
+		ORDER BY event_date
+	`, nextFrom, nextTo)
+	if err != nil {
+		return nil, err
+	}
+	defer nRows.Close()
+	for nRows.Next() {
+		var title, date string
+		nRows.Scan(&title, &date)
+		if len(date) > 10 { date = date[:10] }
+		r.UpcomingEvents = append(r.UpcomingEvents, fmt.Sprintf("%s — %s", date, title))
+	}
+
+	// Words
+	wRows, err := db.Query(`SELECT word FROM zili_words WHERE noted_date BETWEEN $1 AND $2 ORDER BY noted_date, id`, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer wRows.Close()
+	for wRows.Next() {
+		var w string
+		wRows.Scan(&w)
+		r.NewWords = append(r.NewWords, w)
+	}
+	if len(r.NewWords) > 0 {
+		r.WordOfTheWeek = r.NewWords[len(r.NewWords)-1]
+	} else {
+		db.QueryRow(`SELECT word FROM zili_words ORDER BY RANDOM() LIMIT 1`).Scan(&r.WordOfTheWeek)
+	}
+
+	return r, nil
+}
+
+func formatMonthlyReport(r *monthlyReport) string {
+	var sb strings.Builder
+	days := 31 // approximate; good enough for daily avg
+
+	sb.WriteString(fmt.Sprintf("Zili monthly report: %s – %s\n", r.From, r.To))
+	sb.WriteString(fmt.Sprintf("Age: %d weeks %d days\n\n", r.AgeWeeks, r.AgeDays))
+
+	sb.WriteString("🍼 Feeding\n")
+	sb.WriteString(fmt.Sprintf("  Total milk: %d g\n", r.TotalMilkG))
+	sb.WriteString(fmt.Sprintf("  Feedings: %d (breast: %d, bottle: %d)\n", r.FeedCount, r.BreastCount, r.BottleCount))
+	sb.WriteString(fmt.Sprintf("  Avg per feeding: %d g\n", r.AvgMilkPerFeedG))
+	if r.LongestFeedGapH > 0 {
+		sb.WriteString(fmt.Sprintf("  Longest gap between feedings: %.1fh\n", r.LongestFeedGapH))
+	}
+	sb.WriteString("\n")
+
+	sb.WriteString("😴 Sleep\n")
+	sb.WriteString(fmt.Sprintf("  Total sleep: %dh %dm\n", r.TotalSleepMin/60, r.TotalSleepMin%60))
+	sb.WriteString(fmt.Sprintf("  Total awake: %dh %dm\n", r.TotalAwakeMin/60, r.TotalAwakeMin%60))
+	if r.LongestSleepMin > 0 {
+		sb.WriteString(fmt.Sprintf("  Longest stretch: %dh %dm\n", r.LongestSleepMin/60, r.LongestSleepMin%60))
+	}
+	if r.AvgSleepSessionMin > 0 {
+		sb.WriteString(fmt.Sprintf("  Avg session: %dh %dm\n", r.AvgSleepSessionMin/60, r.AvgSleepSessionMin%60))
+	}
+	if r.AvgBedtimeMin > 0 {
+		sb.WriteString(fmt.Sprintf("  Avg bedtime: %02d:%02d\n", r.AvgBedtimeMin/60, r.AvgBedtimeMin%60))
+	}
+	sb.WriteString("\n")
+
+	sb.WriteString("⚖️ Weight\n")
+	if r.LatestWeight != nil {
+		sb.WriteString(fmt.Sprintf("  Latest: %d g\n", *r.LatestWeight))
+	}
+	if r.WeightGainG != nil {
+		sb.WriteString(fmt.Sprintf("  Gain since last measurement: %+d g\n", *r.WeightGainG))
+	}
+	if r.WHOStatus != "" {
+		sb.WriteString(fmt.Sprintf("  WHO standard: %s\n", r.WHOStatus))
+	}
+	sb.WriteString("\n")
+
+	sb.WriteString("🚼 Diapers\n")
+	total := r.WetCount + r.DirtyCount + r.BothCount
+	sb.WriteString(fmt.Sprintf("  Total: %d (wet: %d, dirty: %d, both: %d)\n", total, r.WetCount, r.DirtyCount, r.BothCount))
+	sb.WriteString(fmt.Sprintf("  Daily avg: %.1f\n", float64(total)/float64(days)))
+	if r.DaysWithoutDirty >= 1 {
+		sb.WriteString(fmt.Sprintf("  ⚠️ %d day(s) without dirty diaper!\n", r.DaysWithoutDirty))
+	}
+	sb.WriteString("\n")
+
+	sb.WriteString(fmt.Sprintf("🛁 Baths: %d\n\n", r.BathCount))
+
+	if len(r.Milestones) > 0 {
+		sb.WriteString("🎉 Milestones\n")
+		for _, m := range r.Milestones {
+			sb.WriteString(fmt.Sprintf("  • %s\n", m))
+		}
+		sb.WriteString("\n")
+	}
+
+	if r.WordOfTheWeek != "" {
+		sb.WriteString("💬 Word of the month: " + r.WordOfTheWeek + "\n")
+		if len(r.NewWords) > 1 {
+			sb.WriteString("  New words this month:\n")
+			for _, w := range r.NewWords {
+				sb.WriteString(fmt.Sprintf("  • %s\n", w))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(r.Events) > 0 {
+		sb.WriteString("📅 Events this month\n")
+		for _, e := range r.Events {
+			sb.WriteString(fmt.Sprintf("  • %s\n", e))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(r.UpcomingEvents) > 0 {
+		sb.WriteString("🔜 Upcoming next month\n")
+		for _, e := range r.UpcomingEvents {
+			sb.WriteString(fmt.Sprintf("  • %s\n", e))
+		}
+	}
+
+	return sb.String()
+}
+
+func sendMonthlyReport() error {
+	r, err := buildMonthlyReport()
+	if err != nil {
+		return err
+	}
+	from := getEnv("SMTP_FROM", "")
+	toRaw := getEnv("SMTP_TO", "")
+	var toList []string
+	for _, addr := range strings.Split(toRaw, ",") {
+		if t := strings.TrimSpace(addr); t != "" {
+			toList = append(toList, t)
+		}
+	}
+	password := getEnv("SMTP_PASSWORD", "")
+	host := getEnv("SMTP_HOST", "smtp.gmail.com")
+	smtpAddr := host + ":587"
+	subject := fmt.Sprintf("Zili monthly report %s – %s", r.From, r.To)
+	body := formatMonthlyReport(r)
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s", from, strings.Join(toList, ", "), subject, body)
+	auth := smtp.PlainAuth("", from, password, host)
+	return smtp.SendMail(smtpAddr, auth, from, toList, []byte(msg))
+}
+
+func scheduleMonthlyReport() {
+	for {
+		now := nowBp()
+		// next 21st at 08:00
+		next := time.Date(now.Year(), now.Month(), 21, 8, 0, 0, 0, budapest())
+		if !next.After(now) {
+			next = next.AddDate(0, 1, 0)
+		}
+		time.Sleep(time.Until(next))
+		if err := sendMonthlyReport(); err != nil {
+			log.Println("monthly report error:", err)
+		}
+	}
+}
+
 func sendWeeklyReport() error {
 	r, err := buildWeeklyReport()
 	if err != nil {
@@ -461,5 +863,11 @@ func sendWeeklyReport() error {
 
 	auth := smtp.PlainAuth("", from, password, host)
 	return smtp.SendMail(smtpAddr, auth, from, toList, []byte(msg))
+}
+
+func parseHHMM(t string) (int, int, error) {
+	var h, m int
+	_, err := fmt.Sscanf(t, "%d:%d", &h, &m)
+	return h, m, err
 }
 

@@ -189,8 +189,16 @@ func main() {
                 }
                 c.JSON(http.StatusOK, gin.H{"status": "sent"})
         })
+        router.POST("/api/send-monthly-report", func(c *gin.Context) {
+                if err := sendMonthlyReport(); err != nil {
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                        return
+                }
+                c.JSON(http.StatusOK, gin.H{"status": "sent"})
+        })
 
         go scheduleWeeklyReport()
+        go scheduleMonthlyReport()
         go scheduleNapReminder()
         go scheduleFeedReminder()
 
