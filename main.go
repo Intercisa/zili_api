@@ -54,6 +54,12 @@ type MilkConsumedPoint struct {
         MilkConsumedG int    `json:"milkConsumedG"`
 }
 
+type MilkConsumedBreakdown struct {
+        Date     string `json:"date"`
+        BreastG  int    `json:"breastG"`
+        FormulaG int    `json:"formulaG"`
+}
+
 type GrowthPoint struct {
         Date     string   `json:"date"`
         WeightG  *int     `json:"weightG"`
@@ -155,6 +161,7 @@ func main() {
         router.GET("/api/status-weights", getStatusWeights)
         router.GET("/api/milk-transfer", getMilkTransfer)
         router.GET("/api/milk-consumed", getMilkConsumed)
+        router.GET("/api/milk-consumed-breakdown", getMilkConsumedBreakdown)
         router.GET("/api/summary", getSummary)
         router.GET("/api/vitamins", getVitamins)
         router.PUT("/api/vitamins/:key", putVitamin)
@@ -172,6 +179,7 @@ func main() {
         router.PUT("/api/checklist-items/:itemId", toggleChecklistItem)
         router.DELETE("/api/checklist-items/:itemId", deleteChecklistItem)
         router.GET("/api/events/calendar.ics", getCalendar)
+        router.GET("/api/last-feed", getLastFeed)
         router.GET("/api/push-vapid-key", getVapidPublicKey)
         router.POST("/api/push-subscribe", pushSubscribe)
         router.GET("/api/pending-feed", getPendingFeed)
@@ -188,9 +196,18 @@ func main() {
                 }
                 c.JSON(http.StatusOK, gin.H{"status": "sent"})
         })
+        router.POST("/api/send-monthly-report", func(c *gin.Context) {
+                if err := sendMonthlyReport(); err != nil {
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                        return
+                }
+                c.JSON(http.StatusOK, gin.H{"status": "sent"})
+        })
 
         go scheduleWeeklyReport()
+        go scheduleMonthlyReport()
         go scheduleNapReminder()
+        go scheduleFeedReminder()
 
         router.GET("/logs", getLogs)
         router.GET("/logs/:date", getLogByDate)
@@ -581,6 +598,36 @@ func getMilkConsumed(c *gin.Context) {
         for rows.Next() {
                 var item MilkConsumedPoint
                 if err := rows.Scan(&item.Date, &item.MilkConsumedG); err != nil {
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                        return
+                }
+                data = append(data, item)
+        }
+        c.JSON(http.StatusOK, data)
+}
+
+func getMilkConsumedBreakdown(c *gin.Context) {
+        to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+        from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
+        rows, err := db.Query(`
+                SELECT log_date::text,
+                       SUM(CASE WHEN fed_formula = false THEN milk_transfer_g ELSE 0 END) as breast_g,
+                       SUM(CASE WHEN fed_formula = true  THEN milk_transfer_g ELSE 0 END) as formula_g
+                FROM zili_daily_log
+                WHERE milk_transfer_g IS NOT NULL
+                  AND log_date BETWEEN $1 AND $2
+                GROUP BY log_date
+                ORDER BY log_date ASC
+        `, from, to)
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }
+        defer rows.Close()
+        data := []MilkConsumedBreakdown{}
+        for rows.Next() {
+                var item MilkConsumedBreakdown
+                if err := rows.Scan(&item.Date, &item.BreastG, &item.FormulaG); err != nil {
                         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
                         return
                 }
@@ -1469,6 +1516,101 @@ func scheduleNapReminder() {
 			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
 			time.Now().In(bp).Format("2006-01-02 15:04:05"))
 		go sendNapPush()
+	}
+}
+
+func getLastFeed(c *gin.Context) {
+	now := nowBp()
+	var lastFeedStr sql.NullString
+	db.QueryRow(`
+		SELECT log_date::text || ' ' || log_time::text
+		FROM zili_daily_log
+		WHERE log_time IS NOT NULL
+		  AND (fed_breast = true OR fed_bottle = true OR fed_formula = true
+		       OR milk_transfer_g IS NOT NULL)
+		  AND pending = false
+		ORDER BY log_date DESC, log_time DESC LIMIT 1
+	`).Scan(&lastFeedStr)
+	if !lastFeedStr.Valid {
+		c.JSON(http.StatusOK, gin.H{"secondsAgo": nil})
+		return
+	}
+	bp := budapest()
+	lastFeed, err := time.ParseInLocation("2006-01-02 15:04:05", lastFeedStr.String, bp)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"secondsAgo": nil})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"secondsAgo": int(now.Sub(lastFeed).Seconds())})
+}
+
+func sendFeedPush() {
+	rows, err := db.Query(`SELECT endpoint, p256dh, auth FROM push_subscriptions`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	payload, _ := json.Marshal(map[string]string{
+		"title": "🍼 Ideje enni!",
+		"body":  "Több mint 3 órája evett utoljára.",
+	})
+	for rows.Next() {
+		var sub webpush.Subscription
+		rows.Scan(&sub.Endpoint, &sub.Keys.P256dh, &sub.Keys.Auth)
+		resp, err := webpush.SendNotification(payload, &sub, &webpush.Options{
+			VAPIDPublicKey:  vapidPublic,
+			VAPIDPrivateKey: vapidPrivate,
+			TTL:             3600,
+		})
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+		if resp.StatusCode == 410 || resp.StatusCode == 404 {
+			db.Exec(`DELETE FROM push_subscriptions WHERE endpoint = $1`, sub.Endpoint)
+		}
+	}
+}
+
+func scheduleFeedReminder() {
+	const feedThreshold = 3 * time.Hour
+	const checkInterval = 60 * time.Second
+
+	for {
+		time.Sleep(checkInterval)
+		var lastFeedStr sql.NullString
+		db.QueryRow(`
+			SELECT log_date::text || ' ' || log_time::text
+			FROM zili_daily_log
+			WHERE log_time IS NOT NULL
+			  AND (fed_breast = true OR fed_bottle = true OR fed_formula = true
+			       OR milk_transfer_g IS NOT NULL)
+			  AND pending = false
+			ORDER BY log_date DESC, log_time DESC LIMIT 1
+		`).Scan(&lastFeedStr)
+		if !lastFeedStr.Valid {
+			continue
+		}
+		bp := budapest()
+		lastFeed, err := time.ParseInLocation("2006-01-02 15:04:05", lastFeedStr.String, bp)
+		if err != nil {
+			continue
+		}
+		if time.Now().In(bp).Sub(lastFeed) < feedThreshold {
+			continue
+		}
+		var lastFiredStr sql.NullString
+		db.QueryRow(`SELECT value FROM app_settings WHERE key = 'feed_reminder_last_fired'`).Scan(&lastFiredStr)
+		if lastFiredStr.Valid && lastFiredStr.String != "" {
+			lastFired, err := time.ParseInLocation("2006-01-02 15:04:05", lastFiredStr.String, bp)
+			if err == nil && !lastFired.Before(lastFeed) {
+				continue
+			}
+		}
+		db.Exec(`INSERT INTO app_settings (key, value) VALUES ('feed_reminder_last_fired', $1)
+			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+			time.Now().In(bp).Format("2006-01-02 15:04:05"))
+		go sendFeedPush()
 	}
 }
 

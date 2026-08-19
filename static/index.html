@@ -21,7 +21,6 @@
     </div>
     <div class="header-actions">
         <button id="openFormButton">+ Add Entry</button>
-        <button id="openGrowthFormButton">📏 Add Growth</button>
 
     </div>
 </header>
@@ -396,14 +395,14 @@
 
 <main>
     <section class="summary-grid">
-        <div class="summary-card"><span class="label">Total logs</span><span id="totalLogs" class="value">-</span></div>
+        <div class="summary-card"><span class="label">Mai tej</span><span id="todayMilk" class="value">-</span></div>
         <div class="summary-card"><span class="label">Zili's status</span><span id="awakeStatus" class="value"></span></div>
         <div class="summary-card">
             <span class="label">Ma aludt</span>
             <span id="todaySleep" class="value">-</span>
         </div>
         <div class="summary-card"><span class="label">Ma ébren</span><span id="todayAwake" class="value">-</span></div>
-        <div class="summary-card"><span class="label">First weight</span><span id="firstWeight" class="value">-</span></div>
+        <div class="summary-card" id="lastFeedCard"><span class="label">Utolsó evés</span><span id="lastFeedStatus" class="value">-</span></div>
         <div class="summary-card"><span class="label">Latest weight</span><span id="latestWeight" class="value">-</span></div>
         <div class="summary-card"><span class="label">Total gain</span><span id="weightGain" class="value">-</span></div>
         <div class="summary-card" id="ageCard">
@@ -422,6 +421,7 @@
             <button class="tab-btn active" data-tab="eventsTab">📅 Események</button>
         </div>
         <div id="growthTab" class="tab-panel hidden">
+            <button id="openGrowthFormButton" onclick="openGrowthForm()" style="margin-bottom:1rem">📏 Add Growth</button>
             <div id="growthLatest" class="growth-latest"></div>
             <div id="growthTimeline" class="growth-timeline"></div>
         </div>
