@@ -54,6 +54,12 @@ type MilkConsumedPoint struct {
         MilkConsumedG int    `json:"milkConsumedG"`
 }
 
+type MilkConsumedBreakdown struct {
+        Date     string `json:"date"`
+        BreastG  int    `json:"breastG"`
+        FormulaG int    `json:"formulaG"`
+}
+
 type GrowthPoint struct {
         Date     string   `json:"date"`
         WeightG  *int     `json:"weightG"`
@@ -155,6 +161,7 @@ func main() {
         router.GET("/api/status-weights", getStatusWeights)
         router.GET("/api/milk-transfer", getMilkTransfer)
         router.GET("/api/milk-consumed", getMilkConsumed)
+        router.GET("/api/milk-consumed-breakdown", getMilkConsumedBreakdown)
         router.GET("/api/summary", getSummary)
         router.GET("/api/vitamins", getVitamins)
         router.PUT("/api/vitamins/:key", putVitamin)
@@ -591,6 +598,36 @@ func getMilkConsumed(c *gin.Context) {
         for rows.Next() {
                 var item MilkConsumedPoint
                 if err := rows.Scan(&item.Date, &item.MilkConsumedG); err != nil {
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                        return
+                }
+                data = append(data, item)
+        }
+        c.JSON(http.StatusOK, data)
+}
+
+func getMilkConsumedBreakdown(c *gin.Context) {
+        to := c.DefaultQuery("to", nowBp().Format("2006-01-02"))
+        from := c.DefaultQuery("from", nowBp().AddDate(0, 0, -6).Format("2006-01-02"))
+        rows, err := db.Query(`
+                SELECT log_date::text,
+                       SUM(CASE WHEN fed_formula = false THEN milk_transfer_g ELSE 0 END) as breast_g,
+                       SUM(CASE WHEN fed_formula = true  THEN milk_transfer_g ELSE 0 END) as formula_g
+                FROM zili_daily_log
+                WHERE milk_transfer_g IS NOT NULL
+                  AND log_date BETWEEN $1 AND $2
+                GROUP BY log_date
+                ORDER BY log_date ASC
+        `, from, to)
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }
+        defer rows.Close()
+        data := []MilkConsumedBreakdown{}
+        for rows.Next() {
+                var item MilkConsumedBreakdown
+                if err := rows.Scan(&item.Date, &item.BreastG, &item.FormulaG); err != nil {
                         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
                         return
                 }
