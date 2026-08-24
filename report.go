@@ -54,6 +54,7 @@ type weeklyReport struct {
 	FeedCount        int
 	BreastCount      int
 	BottleCount      int
+	FormulaCount     int
 	AvgMilkPerFeedG  int
 	LongestFeedGapH  float64
 	// Sleep
@@ -104,14 +105,13 @@ func buildWeeklyReport() (*weeklyReport, error) {
 	// Feeding
 	rows, err := db.Query(`
 		SELECT
-			COALESCE(SUM(post_feed_weight_g - pre_feed_weight_g), 0),
+			COALESCE(SUM(milk_transfer_g), 0),
 			COUNT(*),
 			SUM(CASE WHEN fed_breast THEN 1 ELSE 0 END),
-			SUM(CASE WHEN fed_bottle THEN 1 ELSE 0 END)
+			SUM(CASE WHEN fed_bottle THEN 1 ELSE 0 END),
+			SUM(CASE WHEN fed_formula THEN 1 ELSE 0 END)
 		FROM zili_daily_log
-		WHERE pre_feed_weight_g IS NOT NULL
-		  AND post_feed_weight_g IS NOT NULL
-		  AND post_feed_weight_g > pre_feed_weight_g
+		WHERE milk_transfer_g IS NOT NULL
 		  AND log_date BETWEEN $1 AND $2
 	`, from, to)
 	if err != nil {
@@ -119,7 +119,7 @@ func buildWeeklyReport() (*weeklyReport, error) {
 	}
 	defer rows.Close()
 	if rows.Next() {
-		rows.Scan(&r.TotalMilkG, &r.FeedCount, &r.BreastCount, &r.BottleCount)
+		rows.Scan(&r.TotalMilkG, &r.FeedCount, &r.BreastCount, &r.BottleCount, &r.FormulaCount)
 	}
 	if r.FeedCount > 0 {
 		r.AvgMilkPerFeedG = r.TotalMilkG / r.FeedCount
@@ -128,9 +128,7 @@ func buildWeeklyReport() (*weeklyReport, error) {
 	// Longest gap between feedings
 	feedRows, err := db.Query(`
 		SELECT log_date::text, log_time::text FROM zili_daily_log
-		WHERE pre_feed_weight_g IS NOT NULL
-		  AND post_feed_weight_g IS NOT NULL
-		  AND post_feed_weight_g > pre_feed_weight_g
+		WHERE milk_transfer_g IS NOT NULL
 		  AND log_date BETWEEN $1 AND $2
 		  AND log_time IS NOT NULL
 		ORDER BY log_date, log_time
@@ -152,7 +150,7 @@ func buildWeeklyReport() (*weeklyReport, error) {
 	}
 	for i := 1; i < len(feedTimes); i++ {
 		gap := feedTimes[i].Sub(feedTimes[i-1]).Hours()
-		if gap > r.LongestFeedGapH {
+		if gap <= 24 && gap > r.LongestFeedGapH {
 			r.LongestFeedGapH = gap
 		}
 	}
@@ -354,7 +352,7 @@ func formatReport(r *weeklyReport) string {
 
 	sb.WriteString("🍼 Feeding\n")
 	sb.WriteString(fmt.Sprintf("  Total milk: %d g\n", r.TotalMilkG))
-	sb.WriteString(fmt.Sprintf("  Feedings: %d (breast: %d, bottle: %d)\n", r.FeedCount, r.BreastCount, r.BottleCount))
+	sb.WriteString(fmt.Sprintf("  Feedings: %d (breast: %d, bottle: %d, formula: %d)\n", r.FeedCount, r.BreastCount, r.BottleCount, r.FormulaCount))
 	sb.WriteString(fmt.Sprintf("  Avg per feeding: %d g\n", r.AvgMilkPerFeedG))
 	if r.LongestFeedGapH > 0 {
 		sb.WriteString(fmt.Sprintf("  Longest gap between feedings: %.1fh\n", r.LongestFeedGapH))
