@@ -22,7 +22,7 @@ async function savePendingFeed(data) {
     const payload = {
         logDate: data.logDate, logTime: data.logTime,
         preFeedWeightG: data.preFeedWeightG, postFeedWeightG: data.postFeedWeightG,
-        fedBreast: data.fedBreast, fedBottle: data.fedBottle,
+        fedBreast: data.fedBreast, fedBottle: data.fedBottle, fedFormula: data.fedFormula,
         statusWeightG: data.statusWeightG ? parseInt(data.statusWeightG) : null,
         measurementWeightG: data.measurementWeightG ? parseInt(data.measurementWeightG) : null,
         dailySummary: data.dailySummary || "",
@@ -47,7 +47,7 @@ async function loadPendingFeed() {
     return {
         id: data.id, logDate, logTime,
         preFeedWeightG: data.preFeedWeightG, postFeedWeightG: data.postFeedWeightG,
-        fedBreast: data.fedBreast, fedBottle: data.fedBottle,
+        fedBreast: data.fedBreast, fedBottle: data.fedBottle, fedFormula: data.fedFormula,
         statusWeightG: data.statusWeightG, measurementWeightG: data.measurementWeightG,
         dailySummary: data.dailySummary, quickTags,
     };
@@ -346,6 +346,7 @@ async function openForm(restorePending = false) {
         document.getElementById("postFeedWeightG").value = pending.postFeedWeightG ?? "";
         document.getElementById("fedBreast").checked = pending.fedBreast || false;
         document.getElementById("fedBottle").checked = pending.fedBottle || false;
+        document.getElementById("fedFormula").checked = pending.fedFormula || false;
         document.getElementById("statusWeightG").value = pending.statusWeightG ?? "";
         document.getElementById("measurementWeightG").value = pending.measurementWeightG ?? "";
         document.getElementById("dailySummary").value = pending.dailySummary || "";

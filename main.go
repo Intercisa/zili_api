@@ -404,10 +404,10 @@ func getPendingFeed(c *gin.Context) {
         var statusWeightG, measurementWeightG sql.NullInt64
         err := db.QueryRow(`
                 SELECT id, log_date::text, log_time::text, pre_feed_weight_g, post_feed_weight_g,
-                       fed_breast, fed_bottle, status_weight_g, measurement_weight_g, daily_summary
+                       fed_breast, fed_bottle, fed_formula, status_weight_g, measurement_weight_g, daily_summary
                 FROM zili_daily_log WHERE pending = true ORDER BY id DESC LIMIT 1
         `).Scan(&entry.ID, &entry.LogDate, &logTime, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
-                &entry.FedBreast, &entry.FedBottle, &statusWeightG, &measurementWeightG, &entry.DailySummary)
+                &entry.FedBreast, &entry.FedBottle, &entry.FedFormula, &statusWeightG, &measurementWeightG, &entry.DailySummary)
         if err == sql.ErrNoRows {
                 c.JSON(http.StatusOK, nil)
                 return
