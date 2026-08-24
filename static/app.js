@@ -158,7 +158,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("cancelEditButton").addEventListener("click", closeEditForm);
     document.getElementById("editOverlay").addEventListener("click", e => { if (e.target === document.getElementById("editOverlay")) closeEditForm(); });
     document.getElementById("editForm").addEventListener("submit", submitEdit);
-    document.getElementById("openGrowthFormButton").addEventListener("click", openGrowthForm);
     document.getElementById("closeGrowthButton").addEventListener("click", closeGrowthForm);
     document.getElementById("cancelGrowthButton").addEventListener("click", closeGrowthForm);
     document.getElementById("growthOverlay").addEventListener("click", e => { if (e.target === document.getElementById("growthOverlay")) closeGrowthForm(); });
@@ -684,15 +683,46 @@ async function submitEdit(event) {
 }
 
 async function loadDashboard() {
-    await Promise.all([loadSummary(), loadWeightChart(), loadMilkConsumedChart(), loadLogs()]);
+    await Promise.all([loadSummary(), loadLastFeed(), loadWeightChart(), loadMilkConsumedChart(), loadLogs()]);
 }
 
 async function loadSummary() {
-    const data = await fetch("/api/summary").then(r => r.json());
-    document.getElementById("totalLogs").textContent = data.totalLogs;
-    document.getElementById("firstWeight").textContent = formatGram(data.firstWeight);
+    const today = localDateStr();
+    const [data, milkToday] = await Promise.all([
+        fetch("/api/summary").then(r => r.json()),
+        fetch(`/api/milk-consumed?from=${today}&to=${today}`).then(r => r.json()).catch(() => [])
+    ]);
+    const todayMilk = milkToday && milkToday.length > 0 ? milkToday[0].milkConsumedG : null;
+    document.getElementById("todayMilk").textContent = todayMilk !== null ? `${todayMilk} g` : "-";
     document.getElementById("latestWeight").textContent = formatGram(data.latestWeight);
     document.getElementById("weightGain").textContent = formatGram(data.weightGain);
+}
+
+let _lastFeedSeconds = null;
+let _lastFeedTimer = null;
+
+async function loadLastFeed() {
+    const data = await fetch("/api/last-feed").then(r => r.json()).catch(() => null);
+    if (!data || data.secondsAgo === null) return;
+    _lastFeedSeconds = data.secondsAgo;
+    renderLastFeed();
+    if (_lastFeedTimer) clearInterval(_lastFeedTimer);
+    _lastFeedTimer = setInterval(() => { _lastFeedSeconds++; renderLastFeed(); }, 60000);
+}
+
+function renderLastFeed() {
+    const s = _lastFeedSeconds;
+    if (s === null) return;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const text = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const el = document.getElementById("lastFeedStatus");
+    const card = document.getElementById("lastFeedCard");
+    el.textContent = text;
+    const overdue = s >= 3 * 3600;
+    card.style.background = overdue ? "#fef2f2" : "";
+    card.style.borderColor = overdue ? "#f87171" : "";
+    el.style.color = overdue ? "#dc2626" : "";
 }
 
 async function loadLogs() {
@@ -864,16 +894,37 @@ async function loadSleepAwakeChart() {
 async function loadMilkConsumedChart() {
     const from = document.getElementById("milkFromDate").value;
     const to = document.getElementById("milkToDate").value;
-    const data = await fetch(`/api/milk-consumed?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
+    const data = await fetch(`/api/milk-consumed-breakdown?from=${from}&to=${to}`).then(r => r.json()).catch(() => []) ?? [];
     const ctx = document.getElementById("milkConsumedChart");
     if (milkConsumedChart) milkConsumedChart.destroy();
     milkConsumedChart = new Chart(ctx, {
         type: "bar",
-        data: { labels: data.map(i => i.date.substring(0, 10)), datasets: [{ label: "Milk consumed (g)", data: data.map(i => i.milkConsumedG), backgroundColor: "#f9a8d4", borderColor: "#db2777", borderWidth: 1 }] },
+        data: {
+            labels: data.map(i => i.date.substring(0, 10)),
+            datasets: [
+                { label: "🤱 Breast (g)", data: data.map(i => i.breastG), backgroundColor: "#f9a8d4", borderColor: "#db2777", borderWidth: 1, stack: "milk" },
+                { label: "🥛 Formula (g)", data: data.map(i => i.formulaG), backgroundColor: "#a5b4fc", borderColor: "#6366f1", borderWidth: 1, stack: "milk" }
+            ]
+        },
         options: {
             responsive: true,
-            plugins: { datalabels: { anchor: "center", align: "center", color: "#9d174d", font: { weight: "700", size: 14 }, rotation: () => window.innerWidth < 600 ? -90 : 0, formatter: v => `${v} g` }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} g` } } },
-            scales: { y: { beginAtZero: true, title: { display: true, text: "Milk consumed in grams" } }, x: { title: { display: true, text: "Date" } } }
+            plugins: {
+                datalabels: {
+                    display: ctx => ctx.datasetIndex === 1,
+                    anchor: "end", align: "start",
+                    color: "#9d174d", font: { weight: "700", size: 13 },
+                    rotation: () => window.innerWidth < 600 ? -90 : 0,
+                    formatter: (v, ctx) => {
+                        const total = ctx.chart.data.datasets.reduce((s, ds) => s + (ds.data[ctx.dataIndex] || 0), 0);
+                        return `${total} g`;
+                    }
+                },
+                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y} g` } }
+            },
+            scales: {
+                x: { stacked: true, title: { display: true, text: "Date" } },
+                y: { stacked: true, beginAtZero: true, title: { display: true, text: "Milk consumed in grams" } }
+            }
         }
     });
     setupChartScroll("milkConsumedChart", "milkFromDate", "milkToDate", loadMilkConsumedChart);
