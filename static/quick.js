@@ -8,9 +8,20 @@ function showToast(msg) {
 }
 
 function flash(btn) {
+    if (navigator.vibrate) navigator.vibrate([60, 40, 80]);
+    const emoji = btn.querySelector('.btn-emoji');
+    const label = btn.querySelector('.btn-label');
+    const origEmoji = emoji.innerHTML;
+    const origLabel = label.innerHTML;
+    emoji.textContent = '✅';
+    label.textContent = 'Kész!';
     btn.classList.remove('flash');
     void btn.offsetWidth;
     btn.classList.add('flash');
+    setTimeout(() => {
+        emoji.innerHTML = origEmoji;
+        label.innerHTML = origLabel;
+    }, 2000);
 }
 
 function attachLongPress(el, onTrigger, duration = 700) {
