@@ -3,7 +3,7 @@
   "short_name": "Zili⚡",
   "id": "/quick", 
   "start_url": "/quick", 
-  "scope": "/quick/", 
+  "scope": "/quick", 
   "display": "standalone",
   "background_color": "#fdf2f6",
   "theme_color": "#db2777",
