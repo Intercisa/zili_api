@@ -1,7 +1,9 @@
 {
   "name": "Zili Dashboard",
   "short_name": "Zili",
+  "id": "/dashboard", 
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#7b174e",
