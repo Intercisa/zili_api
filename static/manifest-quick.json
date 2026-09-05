@@ -1,7 +1,9 @@
 {
   "name": "Zili Quick",
   "short_name": "Zili⚡",
-  "start_url": "/quick",
+  "id": "/quick", 
+  "start_url": "/quick", 
+  "scope": "/quick/", 
   "display": "standalone",
   "background_color": "#fdf2f6",
   "theme_color": "#db2777",
