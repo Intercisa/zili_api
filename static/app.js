@@ -137,6 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById(target).classList.remove("hidden");
             if (target === "statusWeightTab" && !statusWeightChart) loadStatusWeightChart();
             if (target === "sleepAwakeTab" && !sleepAwakeChart) loadSleepAwakeChart();
+            if (target === "foodTab") loadFoodLogs();
         });
     });
 
@@ -249,6 +250,12 @@ document.addEventListener("DOMContentLoaded", () => {
         await updateCurrentStatus();
         loadLogs();
     });
+
+    document.getElementById('closeFoodButton').addEventListener('click', closeFoodForm);
+    document.getElementById('cancelFoodButton').addEventListener('click', closeFoodForm);
+    document.getElementById('foodOverlay').addEventListener('click', e => { if (e.target === document.getElementById('foodOverlay')) closeFoodForm(); });
+    document.getElementById('foodForm').addEventListener('submit', submitFoodLog);
+    initPushNotifications();
 });
 
 function syncQuickTags() {
@@ -552,11 +559,20 @@ async function submitEntry(event) {
     try {
         const pendingEntry = await loadPendingFeed();
         const response = await fetch("/api/logs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        if (!response.ok) { const d = await response.json().catch(() => ({})); throw new Error(d.error || `Server error: ${response.status}`); }
+        const responseData = await response.json().catch(() => ({}));
+        if (!response.ok) { throw new Error(responseData.error || `Server error: ${response.status}`); }
         if (pendingEntry?.id) await fetch(`/api/pending-feed/${pendingEntry.id}`, { method: "DELETE" });
         localStorage.removeItem(PENDING_FEED_KEY);
         successEl.textContent = "Entry saved!"; successEl.classList.remove("hidden");
-        setTimeout(() => { closeForm(); loadDashboard(); loadDiaperAlert(); renderPendingBanner(); }, 1200);
+        const hasDirty = payload.diaper === "dirty" || payload.diaper === "both";
+        const newId = responseData.id;
+        setTimeout(() => {
+            closeForm();
+            loadDashboard();
+            loadDiaperAlert();
+            renderPendingBanner();
+            if (hasDirty && newId) showMainConsistencySheet(newId);
+        }, 1200);
     } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove("hidden"); }
     finally { submitBtn.disabled = false; submitBtn.textContent = "Save Entry"; }
 }
@@ -1458,11 +1474,153 @@ async function initPushNotifications() {
     await subscribeToPush();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initPushNotifications();
-});
+
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && !document.querySelector('.overlay:not(.hidden)')) location.reload();
 });
+
+function showMainConsistencySheet(logId) {
+    const overlay = document.getElementById('mainConsistencyOverlay');
+    overlay.classList.remove('hidden');
+    function close() { overlay.classList.add('hidden'); }
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); }, { once: true });
+    document.getElementById('mainConsistencySkip').onclick = close;
+    overlay.querySelectorAll('.main-cons-btn').forEach(btn => {
+        btn.onclick = async () => {
+            close();
+            await fetch(`/api/logs/${logId}/consistency`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consistency: btn.dataset.value }),
+            }).catch(() => null);
+        };
+    });
+}
+
+const FOOD_REACTIONS = {
+    loved:    { emoji: '❤️', label: 'Imádta' },
+    liked:    { emoji: '👍', label: 'Ette' },
+    neutral:  { emoji: '😐', label: 'Semleges' },
+    disliked: { emoji: '👎', label: 'Nem ette' },
+    refused:  { emoji: '🚫', label: 'Visszautasította' },
+    allergic: { emoji: '⚠️', label: 'Allergiás' },
+};
+
+const FOOD_CATEGORIES = {
+    fruit:   '🍎',
+    veggie:  '🥦',
+    grain:   '🌾',
+    protein: '🍗',
+    dairy:   '🧀',
+    other:   '🍽️',
+};
+
+function openFoodForm() {
+    const overlay = document.getElementById('foodOverlay');
+    overlay.classList.remove('hidden');
+    lockScroll();
+    document.getElementById('foodError').classList.add('hidden');
+    document.getElementById('foodSuccess').classList.add('hidden');
+    document.getElementById('foodForm').reset();
+    const now = new Date();
+    document.getElementById('foodDate').value = localDateStr(now);
+    document.getElementById('foodTime').value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    loadFoodNames();
+}
+
+function closeFoodForm() {
+    document.getElementById('foodOverlay').classList.add('hidden');
+    unlockScroll();
+}
+
+async function loadFoodNames() {
+    const names = await fetch('/api/food-logs/names').then(r => r.json()).catch(() => []);
+    const dl = document.getElementById('foodNameList');
+    dl.innerHTML = names.map(n => `<option value="${n}">`).join('');
+}
+
+async function submitFoodLog(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById('foodError');
+    const successEl = document.getElementById('foodSuccess');
+    errorEl.classList.add('hidden'); successEl.classList.add('hidden');
+    const submitBtn = e.target.querySelector('button[type=submit]');
+    submitBtn.disabled = true; submitBtn.textContent = 'Saving...';
+    const foodName = document.getElementById('foodName').value.trim();
+    if (!foodName) { errorEl.textContent = 'Food name required.'; errorEl.classList.remove('hidden'); submitBtn.disabled = false; submitBtn.textContent = 'Save'; return; }
+    const amountRaw = document.getElementById('foodAmount').value.trim();
+    const notesRaw = document.getElementById('foodNotes').value.trim();
+    const payload = {
+        logDate: document.getElementById('foodDate').value,
+        logTime: document.getElementById('foodTime').value || null,
+        foodName,
+        category: document.querySelector('input[name="foodCategory"]:checked')?.value || null,
+        reaction: document.querySelector('input[name="foodReaction"]:checked')?.value || null,
+        amountG: amountRaw ? parseInt(amountRaw) : null,
+        notes: notesRaw || null,
+    };
+    try {
+        const res = await fetch('/api/food-logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `Server error: ${res.status}`); }
+        successEl.textContent = 'Saved!'; successEl.classList.remove('hidden');
+        setTimeout(() => { closeFoodForm(); loadFoodLogs(); }, 1000);
+    } catch (err) { errorEl.textContent = err.message; errorEl.classList.remove('hidden'); }
+    finally { submitBtn.disabled = false; submitBtn.textContent = 'Save'; }
+}
+
+async function loadFoodLogs() {
+    const logs = await fetch('/api/food-logs').then(r => r.json()).catch(() => []);
+    renderFoodTimeline(logs);
+}
+
+function renderFoodTimeline(logs) {
+    const container = document.getElementById('foodTimeline');
+    if (!logs.length) { container.innerHTML = '<p style="color:#a3728a;font-size:0.875rem">Még nincs étel bejegyezve.</p>'; return; }
+
+    // track first-time foods
+    const seen = new Set();
+    const firstTime = new Set();
+    [...logs].reverse().forEach(f => {
+        const key = f.foodName.toLowerCase();
+        if (!seen.has(key)) { seen.add(key); firstTime.add(f.id); }
+    });
+
+    // group by date
+    const byDate = {};
+    logs.forEach(f => {
+        const d = f.logDate.substring(0, 10);
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(f);
+    });
+
+    container.innerHTML = Object.keys(byDate).map(date => {
+        const items = byDate[date].map(f => {
+            const r = FOOD_REACTIONS[f.reaction] || { emoji: '—', label: '' };
+            const catEmoji = f.category ? (FOOD_CATEGORIES[f.category] || '') : '';
+            const firstBadge = firstTime.has(f.id) ? '<span class="food-first-badge">1st</span>' : '';
+            const amount = f.amountG ? `<span class="food-amount">${f.amountG}g</span>` : '';
+            const notes = f.notes ? `<span class="food-notes">${f.notes}</span>` : '';
+            const time = f.logTime ? `<span class="food-time">${f.logTime}</span>` : '';
+            return `<div class="food-item">
+                <span class="food-reaction-badge food-reaction-${f.reaction || 'none'}" title="${r.label}">${r.emoji}</span>
+                <div class="food-item-body">
+                    <span class="food-name">${catEmoji} ${f.foodName}</span>${firstBadge}${amount}${notes}
+                </div>
+                ${time}
+                <button class="row-btn" onclick="deleteFoodLogEntry(${f.id})">🗑️</button>
+            </div>`;
+        }).join('');
+        return `<div class="food-day-group">
+            <div class="food-day-label">${date}</div>
+            ${items}
+        </div>`;
+    }).join('');
+}
+
+async function deleteFoodLogEntry(id) {
+    if (!confirm('Delete this food entry?')) return;
+    await fetch(`/api/food-logs/${id}`, { method: 'DELETE' });
+    loadFoodLogs();
+}
 

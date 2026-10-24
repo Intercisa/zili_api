@@ -70,6 +70,33 @@ async function logDiaper(diaper) {
     }).catch(() => null);
     if (!res || !res.ok) { showToast('❌ hiba történt'); return; }
     showToast(label + ' mentve ✓');
+    if (diaper !== 'wet') {
+        const data = await res.json().catch(() => null);
+        if (data && data.id) showConsistencySheet(data.id);
+    }
+}
+
+function showConsistencySheet(logId) {
+    const sheet = document.getElementById('consistencySheet');
+    const overlay = document.getElementById('consistencyOverlay');
+    sheet.classList.add('open');
+    overlay.classList.add('open');
+    function close() {
+        sheet.classList.remove('open');
+        overlay.classList.remove('open');
+    }
+    overlay.onclick = close;
+    document.getElementById('consistencySkip').onclick = close;
+    sheet.querySelectorAll('.cons-btn').forEach(btn => {
+        btn.onclick = async () => {
+            close();
+            await fetch(`/api/logs/${logId}/consistency`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consistency: btn.dataset.value }),
+            }).catch(() => null);
+        };
+    });
 }
 
 async function toggleSleep() {

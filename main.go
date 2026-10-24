@@ -31,6 +31,7 @@ type DailyLog struct {
         MeasurementWeight *int     `json:"measurementWeightG"`
         SleepEvent        *string  `json:"sleepEvent"`
         Diaper            *string  `json:"diaper"`
+        DiaperConsistency *string  `json:"diaperConsistency"`
         FedBreast         bool     `json:"fedBreast"`
         FedBottle         bool     `json:"fedBottle"`
         FedFormula        bool     `json:"fedFormula"`
@@ -157,6 +158,7 @@ func main() {
         router.POST("/api/logs", createLog)
         router.PUT("/api/logs/:id", updateLog)
         router.DELETE("/api/logs/:id", deleteLog)
+        router.PATCH("/api/logs/:id/consistency", patchConsistency)
         router.GET("/api/weights", getWeights)
         router.GET("/api/status-weights", getStatusWeights)
         router.GET("/api/milk-transfer", getMilkTransfer)
@@ -189,6 +191,10 @@ func main() {
         router.POST("/api/words", createWord)
         router.DELETE("/api/words/:id", deleteWord)
         router.GET("/api/words/random", getRandomWord)
+        router.GET("/api/food-logs", getFoodLogs)
+        router.POST("/api/food-logs", createFoodLog)
+        router.DELETE("/api/food-logs/:id", deleteFoodLog)
+        router.GET("/api/food-logs/names", getFoodNames)
         router.POST("/api/send-report", func(c *gin.Context) {
                 if err := sendWeeklyReport(); err != nil {
                         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -265,7 +271,7 @@ func getLogs(c *gin.Context) {
                 SELECT id, log_date, log_time, daily_summary, status_weight_g,
                        pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
                        height_cm, head_cm, measurement_weight_g,
-                       sleep_event, diaper, fed_breast, fed_bottle, fed_formula, bathed, milestone
+                       sleep_event, diaper, diaper_consistency, fed_breast, fed_bottle, fed_formula, bathed, milestone
                 FROM zili_daily_log
                 WHERE ($3 = '' OR daily_summary ILIKE '%' || $3 || '%')
                 ORDER BY log_date DESC, COALESCE(log_time, '00:00') DESC, id DESC
@@ -282,12 +288,12 @@ func getLogs(c *gin.Context) {
                 var entry DailyLog
                 var logTime sql.NullString
                 var heightCm, headCm sql.NullFloat64
-                var sleepEvent, diaper sql.NullString
+                var sleepEvent, diaper, diaperConsistency sql.NullString
                 err := rows.Scan(
                         &entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
                         &entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
                         &entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
-                        &sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.FedFormula, &entry.Bathed, &entry.Milestone,
+                        &sleepEvent, &diaper, &diaperConsistency, &entry.FedBreast, &entry.FedBottle, &entry.FedFormula, &entry.Bathed, &entry.Milestone,
                 )
                 if err != nil {
                         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -307,6 +313,9 @@ func getLogs(c *gin.Context) {
                 }
                 if diaper.Valid {
                         entry.Diaper = &diaper.String
+                }
+                if diaperConsistency.Valid {
+                        entry.DiaperConsistency = &diaperConsistency.String
                 }
                 logs = append(logs, entry)
         }
@@ -323,7 +332,7 @@ func getLogByDate(c *gin.Context) {
                 SELECT id, log_date, log_time, daily_summary, status_weight_g,
                        pre_feed_weight_g, post_feed_weight_g, milk_transfer_g,
                        height_cm, head_cm, measurement_weight_g,
-                       sleep_event, diaper, fed_breast, fed_bottle, fed_formula, bathed, milestone
+                       sleep_event, diaper, diaper_consistency, fed_breast, fed_bottle, fed_formula, bathed, milestone
                 FROM zili_daily_log
                 WHERE log_date = $1
                 ORDER BY COALESCE(log_time, '00:00'), id
@@ -339,12 +348,12 @@ func getLogByDate(c *gin.Context) {
                 var entry DailyLog
                 var logTime sql.NullString
                 var heightCm, headCm sql.NullFloat64
-                var sleepEvent, diaper sql.NullString
+                var sleepEvent, diaper, diaperConsistency sql.NullString
                 err := rows.Scan(
                         &entry.ID, &entry.LogDate, &logTime, &entry.DailySummary,
                         &entry.StatusWeightG, &entry.PreFeedWeightG, &entry.PostFeedWeightG,
                         &entry.MilkTransferG, &heightCm, &headCm, &entry.MeasurementWeight,
-                        &sleepEvent, &diaper, &entry.FedBreast, &entry.FedBottle, &entry.FedFormula, &entry.Bathed, &entry.Milestone,
+                        &sleepEvent, &diaper, &diaperConsistency, &entry.FedBreast, &entry.FedBottle, &entry.FedFormula, &entry.Bathed, &entry.Milestone,
                 )
                 if err != nil {
                         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -364,6 +373,9 @@ func getLogByDate(c *gin.Context) {
                 }
                 if diaper.Valid {
                         entry.Diaper = &diaper.String
+                }
+                if diaperConsistency.Valid {
+                        entry.DiaperConsistency = &diaperConsistency.String
                 }
                 logs = append(logs, entry)
         }
@@ -498,6 +510,23 @@ func deleteLog(c *gin.Context) {
                 return
         }
         c.Status(http.StatusNoContent)
+}
+
+func patchConsistency(c *gin.Context) {
+        id := c.Param("id")
+        var body struct {
+                Consistency string `json:"consistency"`
+        }
+        if err := c.ShouldBindJSON(&body); err != nil {
+                c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+                return
+        }
+        _, err := db.Exec(`UPDATE zili_daily_log SET diaper_consistency = $1 WHERE id = $2`, body.Consistency, id)
+        if err != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }
+        c.JSON(http.StatusOK, gin.H{"id": id, "consistency": body.Consistency})
 }
 
 func getWeights(c *gin.Context) {
@@ -1189,6 +1218,17 @@ func deleteChecklistItem(c *gin.Context) {
         c.Status(http.StatusNoContent)
 }
 
+type FoodLog struct {
+        ID       int     `json:"id"`
+        LogDate  string  `json:"logDate"`
+        LogTime  *string `json:"logTime"`
+        FoodName string  `json:"foodName"`
+        Category *string `json:"category"`
+        AmountG  *int    `json:"amountG"`
+        Reaction *string `json:"reaction"`
+        Notes    *string `json:"notes"`
+}
+
 type Word struct {
         ID        int     `json:"id"`
         Word      string  `json:"word"`
@@ -1637,5 +1677,106 @@ func loadOrGenerateVAPIDKeys() error {
 	}
 	log.Println("VAPID keys generated and saved to DB")
 	return nil
+}
+
+func getFoodLogs(c *gin.Context) {
+	rows, err := db.Query(`
+		SELECT id, log_date::text, log_time::text, food_name, category, amount_g, reaction, notes
+		FROM zili_food_log
+		ORDER BY log_date DESC, COALESCE(log_time, '00:00') DESC, id DESC
+	`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	var logs []FoodLog
+	for rows.Next() {
+		var f FoodLog
+		var logTime, category, reaction, notes sql.NullString
+		var amountG sql.NullInt64
+		if err := rows.Scan(&f.ID, &f.LogDate, &logTime, &f.FoodName, &category, &amountG, &reaction, &notes); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if logTime.Valid {
+			v := logTime.String
+			if len(v) > 5 {
+				v = v[:5]
+			}
+			f.LogTime = &v
+		}
+		if len(f.LogDate) > 10 {
+			f.LogDate = f.LogDate[:10]
+		}
+		if category.Valid {
+			f.Category = &category.String
+		}
+		if amountG.Valid {
+			v := int(amountG.Int64)
+			f.AmountG = &v
+		}
+		if reaction.Valid {
+			f.Reaction = &reaction.String
+		}
+		if notes.Valid {
+			f.Notes = &notes.String
+		}
+		logs = append(logs, f)
+	}
+	if logs == nil {
+		logs = []FoodLog{}
+	}
+	c.JSON(http.StatusOK, logs)
+}
+
+func createFoodLog(c *gin.Context) {
+	var body FoodLog
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if body.LogDate == "" {
+		body.LogDate = nowBp().Format("2006-01-02")
+	}
+	var id int
+	err := db.QueryRow(`
+		INSERT INTO zili_food_log (log_date, log_time, food_name, category, amount_g, reaction, notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+	`, body.LogDate, body.LogTime, body.FoodName, body.Category, body.AmountG, body.Reaction, body.Notes).Scan(&id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func deleteFoodLog(c *gin.Context) {
+	id := c.Param("id")
+	_, err := db.Exec(`DELETE FROM zili_food_log WHERE id = $1`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func getFoodNames(c *gin.Context) {
+	rows, err := db.Query(`SELECT DISTINCT food_name FROM zili_food_log ORDER BY food_name`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+	var names []string
+	for rows.Next() {
+		var name string
+		rows.Scan(&name)
+		names = append(names, name)
+	}
+	if names == nil {
+		names = []string{}
+	}
+	c.JSON(http.StatusOK, names)
 }
 
